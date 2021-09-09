@@ -3,8 +3,8 @@ package check
 import "math/big"
 
 type Check struct {
-	Value        *big.Int
-	TokenAddress string
+	Value     *big.Int
+	TokenAddr string
 
 	Nonce *big.Int
 	From  string
@@ -12,10 +12,13 @@ type Check struct {
 
 	OperatorAddr string
 	ContractAddr string
+
+	CheckSig string
 }
 
 type PayCheck struct {
 	Check    *Check
-	CheckSig []byte
 	PayValue *big.Int
+
+	PayCheckSig []byte
 }

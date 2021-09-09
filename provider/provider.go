@@ -8,7 +8,8 @@ import (
 type Provider struct {
 	ProviderSK string
 
-	PayChecks map[string]*check.PayCheck // (operator,nonce) to paycheck
+	//
+	History map[string]*check.PayCheck // keyHash -> key, paycheck, key: "operator:xxx, provider:xxx, nonce:xxx"
 }
 
 type IProvider interface {
