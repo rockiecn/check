@@ -3,13 +3,15 @@ package operator
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 
 	"github.com/rockiecn/check/check"
+	"github.com/rockiecn/check/utils"
 )
 
-func TestSk2Addr(t *testing.T) {
+func TestKeyToAddr(t *testing.T) {
 	var tests = []struct {
 		input string
 		want  string
@@ -22,11 +24,9 @@ func TestSk2Addr(t *testing.T) {
 			"0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"},
 	}
 
-	op := new(Operator)
-
 	for _, test := range tests {
-		if got := op.KeyToAddr(test.input); got != test.want {
-			t.Errorf("sk2addr(%q) = %q", test.input, got)
+		if got := utils.KeyToAddr(test.input); got != test.want {
+			t.Errorf("want:%q got:%q", test.want, got)
 		}
 	}
 }
@@ -76,7 +76,11 @@ func TestSign(t *testing.T) {
 		check.CheckSig = test.CheckSig
 
 		want, _ := hex.DecodeString(check.CheckSig)
-		got, _ := Sign(check, []byte(test.OpSk))
+		got, err := Sign(check, []byte(test.OpSk))
+		if err != nil {
+			fmt.Print("sign error:", err)
+			return
+		}
 
 		if !bytes.Equal(want, got) {
 			t.Errorf("want: %s, got: %s", test.CheckSig, hex.EncodeToString(got))

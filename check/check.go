@@ -20,5 +20,5 @@ type PayCheck struct {
 	Check    *Check
 	PayValue *big.Int
 
-	PayCheckSig []byte
+	PayCheckSig string
 }
