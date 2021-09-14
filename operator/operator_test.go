@@ -57,6 +57,13 @@ func TestSign(t *testing.T) {
 		},
 	}
 
+	op, err := NewOperator(
+		"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
+		"0x9e0153496067c20943724b79515472195a7aedaa")
+	if err != nil {
+		fmt.Println("new operator failed:", err)
+	}
+
 	for _, test := range tests {
 		bigValue := big.NewInt(0)
 		bigValue.SetString(test.Value, 0)
@@ -73,10 +80,12 @@ func TestSign(t *testing.T) {
 		check.To = test.To
 		check.OperatorAddr = test.OperatorAddr
 		check.ContractAddr = test.ContractAddr
-		check.CheckSig = test.CheckSig
 
-		want, _ := hex.DecodeString(check.CheckSig)
-		got, err := Sign(check, []byte(test.OpSk))
+		// decode string to []byte
+		sigByte, _ := hex.DecodeString(string(test.CheckSig))
+		want := sigByte
+
+		got, err := op.Sign(check)
 		if err != nil {
 			fmt.Print("sign error:", err)
 			return
@@ -87,4 +96,21 @@ func TestSign(t *testing.T) {
 		}
 	}
 
+}
+
+func TestDeploy(t *testing.T) {
+	op, err := NewOperator(
+		"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
+		"0x9e0153496067c20943724b79515472195a7aedaa")
+	if err != nil {
+		fmt.Println("new operator failed:", err)
+	}
+
+	txHash, comAddr, err := op.DeployContract()
+
+	if err != nil {
+		t.Errorf("deploy contract failed")
+	}
+	fmt.Println("tx hash:", txHash)
+	fmt.Println("contract address:", comAddr)
 }

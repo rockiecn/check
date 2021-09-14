@@ -13,12 +13,12 @@ type Check struct {
 	OperatorAddr string
 	ContractAddr string
 
-	CheckSig string
+	CheckSig []byte
 }
 
 type PayCheck struct {
 	Check    *Check
 	PayValue *big.Int
 
-	PayCheckSig string
+	PayCheckSig []byte
 }

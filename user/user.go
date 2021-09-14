@@ -1,7 +1,6 @@
 package user
 
 import (
-	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
@@ -13,7 +12,8 @@ import (
 )
 
 type User struct {
-	UserSK string
+	UserSK   string
+	UserAddr string
 
 	//
 	History map[string]*check.PayCheck // keyHash -> key, paycheck, key: "operator:xxx, provider:xxx, nonce:xxx"
@@ -30,8 +30,9 @@ type IUser interface {
 func NewUser(sk string) (*User, error) {
 	user := new(User)
 	user.UserSK = sk
+	user.UserAddr = utils.KeyToAddr(sk)
 
-	return nil, nil
+	return user, nil
 }
 
 // verify signature of a check, check should be signed by an operator
@@ -39,13 +40,8 @@ func (user *User) VerifyCheck(check *check.Check) (bool, error) {
 
 	hash := utils.CheckHash(check)
 
-	sig, err := hex.DecodeString(check.CheckSig)
-	if err != nil {
-		fmt.Println("decode sig error")
-		return false, err
-	}
 	// signature to public key
-	pubKeyECDSA, err := crypto.SigToPub(hash, sig)
+	pubKeyECDSA, err := crypto.SigToPub(hash, check.CheckSig)
 	if err != nil {
 		log.Println("SigToPub err:", err)
 		return false, err
@@ -60,12 +56,12 @@ func (user *User) VerifyCheck(check *check.Check) (bool, error) {
 }
 
 // Sign paycheck by user's sk
-func (user *User) Sign(paycheck *check.PayCheck, skByte []byte) ([]byte, error) {
+func (user *User) Sign(paycheck *check.PayCheck) ([]byte, error) {
 
 	hash := utils.PayCheckHash(paycheck)
 
 	//
-	priKeyECDSA, err := crypto.HexToECDSA(string(skByte))
+	priKeyECDSA, err := crypto.HexToECDSA(user.UserSK)
 	if err != nil {
 		log.Print(err)
 		return nil, err
@@ -87,12 +83,12 @@ func (user *User) GeneratePayCheck(chk *check.Check, payValue *big.Int) (*check.
 	pchk.Check = chk
 	pchk.PayValue = payValue
 
-	sig, err := user.Sign(pchk, []byte(user.UserSK))
+	sig, err := user.Sign(pchk)
 	if err != nil {
 		fmt.Println("user sign paycheck error:", err)
 		return nil, err
 	}
-	pchk.PayCheckSig = string(sig)
+	pchk.PayCheckSig = sig
 
 	return pchk, nil
 }
