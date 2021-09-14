@@ -21,7 +21,7 @@ type Operator struct {
 	ContractAddr string
 	Host         string
 
-	Nonces map[string]*big.Int // provider to nonce, every provider's nonce
+	Nonces map[string]*big.Int // provider to nonce, each provider's nonce
 
 	//
 	History map[string]*check.Check // keyHash -> key, check, key: "operator:xxx, provider:xxx, nonce:xxx"
