@@ -27,9 +27,9 @@ struct Paycheck {
 contract Cash  {
     using SafeMath for uint256;
 
-    event Show256(uint256);
-    event Showaddr(address);
-    event Showbytes(bytes);
+    // event Show256(uint256);
+    // event Showaddr(address);
+    // event Showbytes(bytes);
     
 
     event Received(address, uint256);
@@ -52,19 +52,6 @@ contract Cash  {
     // called by storage
     function apply_check(Paycheck memory paycheck) public payable returns(bool) {
         
-        emit Show256(paycheck.check.nonce);
-        emit Show256(paycheck.payValue);
-        
-        emit Showaddr(paycheck.check.toAddr);
-        emit Showaddr(msg.sender);
-        
-        emit Showaddr(paycheck.check.opAddr);
-        emit Showaddr(owner);
-        
-        emit Showbytes(paycheck.check.checkSig);
-        emit Showbytes(paycheck.paycheckSig);
-        
-
         require(paycheck.check.nonce >= nodeNonce[paycheck.check.toAddr], "check.nonce too old");
         require(paycheck.payValue <= paycheck.check.value, "payvalue should not exceed value of check.");
         //require(paycheck.check.contractAddr == address(this), "contract address error");
@@ -103,7 +90,7 @@ contract Cash  {
         
         // update nonce after paid
         nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce.add(1);
-        
+
         return true;
     }
 

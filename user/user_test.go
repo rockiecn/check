@@ -10,7 +10,6 @@ import (
 	"github.com/rockiecn/check/check"
 )
 
-/*
 func TestVerifyCheck(t *testing.T) {
 
 	type Input struct {
@@ -75,7 +74,8 @@ func TestVerifyCheck(t *testing.T) {
 		check.To = test.input.to
 		check.OperatorAddr = test.input.op
 		check.ContractAddr = test.input.con
-		check.CheckSig = test.input.sig
+		sigByte, err := hex.DecodeString(test.input.sig)
+		check.CheckSig = sigByte
 
 		got, err := user.VerifyCheck(check)
 		if err != nil {
@@ -87,7 +87,7 @@ func TestVerifyCheck(t *testing.T) {
 		}
 	}
 }
-*/
+
 func TestSign(t *testing.T) {
 
 	type PC struct {

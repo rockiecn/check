@@ -84,18 +84,6 @@ func (pro *Provider) CallContract(paycheck *check.PayCheck) error {
 		return err
 	}
 
-	fmt.Println("tx info:")
-	fmt.Printf("value:%s\n", pcForContract.Check.Value.String())
-	fmt.Printf("TokenAddress:%s\n", pcForContract.Check.TokenAddr)
-	fmt.Printf("NodeNonce:%s\n", pcForContract.Check.Nonce.String())
-	fmt.Printf("From:%s\n", pcForContract.Check.FromAddr.String())
-	fmt.Printf("To:%s\n", pcForContract.Check.ToAddr.String())
-	fmt.Printf("OperatorAddress:%s\n", pcForContract.Check.OpAddr.String())
-	fmt.Printf("ContractAddr:%s\n", pcForContract.Check.ContractAddr)
-	fmt.Printf("checkSig:%x\n", pcForContract.Check.CheckSig)
-	fmt.Printf("PayValue:%s\n", pcForContract.PayValue.String())
-	fmt.Printf("paycheckSig:%x\n", pcForContract.PaycheckSig)
-
 	_, err = cashInstance.ApplyCheck(auth, *pcForContract)
 	if err != nil {
 		fmt.Println("tx failed :", err)

@@ -32,7 +32,8 @@ func TestKeyToAddr(t *testing.T) {
 }
 
 func TestSign(t *testing.T) {
-	var tests = []struct {
+
+	type Input struct {
 		Value        string
 		TokenAddr    string
 		Nonce        string
@@ -40,20 +41,41 @@ func TestSign(t *testing.T) {
 		To           string
 		OperatorAddr string
 		ContractAddr string
+		OpSk         string
+		CheckSig     string
+	}
 
-		OpSk     string
-		CheckSig string // wanted
+	var tests = []struct {
+		input Input
+		want  bool
 	}{
 		{
-			"100000000000000000000",
-			"b213d01542d129806d664248a380db8b12059061",
-			"5",
-			"Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
-			"4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
-			"5B38Da6a701c568545dCfcB03FcB875f56beddC4",
-			"aE036c65C649172b43ef7156b009c6221B596B8b",
-			"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
-			"66cec089a3e9d86cc98f829fcf6ed74b6f8bd8537f9ee4eee4c7d8f51fd3fbcf3408429ce1d84a9d107d2e8f1c9730b463b05de5b8f7f221ae5095c8ec58234501",
+			Input{
+				"100000000000000000000",
+				"b213d01542d129806d664248a380db8b12059061",
+				"5",
+				"Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+				"4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+				"5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+				"aE036c65C649172b43ef7156b009c6221B596B8b",
+				"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
+				"66cec089a3e9d86cc98f829fcf6ed74b6f8bd8537f9ee4eee4c7d8f51fd3fbcf3408429ce1d84a9d107d2e8f1c9730b463b05de5b8f7f221ae5095c8ec58234501",
+			},
+			true,
+		},
+		{
+			Input{
+				"200000000000000000000",
+				"b213d01542d129806d664248a380db8b12059061",
+				"5",
+				"Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
+				"4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
+				"5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+				"aE036c65C649172b43ef7156b009c6221B596B8b",
+				"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
+				"66cec089a3e9d86cc98f829fcf6ed74b6f8bd8537f9ee4eee4c7d8f51fd3fbcf3408429ce1d84a9d107d2e8f1c9730b463b05de5b8f7f221ae5095c8ec58234501",
+			},
+			false,
 		},
 	}
 
@@ -66,33 +88,32 @@ func TestSign(t *testing.T) {
 
 	for _, test := range tests {
 		bigValue := big.NewInt(0)
-		bigValue.SetString(test.Value, 0)
+		bigValue.SetString(test.input.Value, 0)
 
 		bigNonce := big.NewInt(0)
-		bigNonce.SetString(test.Nonce, 0)
+		bigNonce.SetString(test.input.Nonce, 0)
 
-		check := new(check.Check)
+		chk := new(check.Check)
 
-		check.Value = bigValue
-		check.TokenAddr = test.TokenAddr
-		check.Nonce = bigNonce
-		check.From = test.From
-		check.To = test.To
-		check.OperatorAddr = test.OperatorAddr
-		check.ContractAddr = test.ContractAddr
+		chk.Value = bigValue
+		chk.TokenAddr = test.input.TokenAddr
+		chk.Nonce = bigNonce
+		chk.From = test.input.From
+		chk.To = test.input.To
+		chk.OperatorAddr = test.input.OperatorAddr
+		chk.ContractAddr = test.input.ContractAddr
 
 		// decode string to []byte
-		sigByte, _ := hex.DecodeString(string(test.CheckSig))
-		want := sigByte
-
-		got, err := op.Sign(check)
+		sigByte, _ := hex.DecodeString(test.input.CheckSig)
+		calcSig, _ := op.Sign(chk)
+		got := bytes.Equal(calcSig, sigByte)
 		if err != nil {
 			fmt.Print("sign error:", err)
 			return
 		}
 
-		if !bytes.Equal(want, got) {
-			t.Errorf("want: %s, got: %s", test.CheckSig, hex.EncodeToString(got))
+		if got != test.want {
+			t.Errorf("want: %v, got: %v", test.want, got)
 		}
 	}
 
@@ -111,6 +132,6 @@ func TestDeploy(t *testing.T) {
 	if err != nil {
 		t.Errorf("deploy contract failed")
 	}
-	fmt.Println("tx hash:", txHash)
-	fmt.Println("contract address:", comAddr)
+
+	_, _ = txHash, comAddr
 }

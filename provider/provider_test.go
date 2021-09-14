@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -10,7 +11,6 @@ import (
 	"github.com/rockiecn/check/user"
 )
 
-/*
 func TestVerifyPayCheck(t *testing.T) {
 
 	type Input struct {
@@ -84,14 +84,16 @@ func TestVerifyPayCheck(t *testing.T) {
 		chk.To = test.input.to
 		chk.OperatorAddr = test.input.op
 		chk.ContractAddr = test.input.con
-		chk.CheckSig = test.input.checksig
+		sigByte, _ := hex.DecodeString(test.input.checksig)
+		chk.CheckSig = sigByte
 
 		paycheck := new(check.PayCheck)
 		paycheck.Check = chk
 		bigPayValue := new(big.Int)
 		bigPayValue.SetString(test.input.payvalue, 10)
 		paycheck.PayValue = bigPayValue
-		paycheck.PayCheckSig = test.input.payckecksig
+		sigByte, _ = hex.DecodeString(test.input.payckecksig)
+		paycheck.PayCheckSig = sigByte
 
 		got, err := pro.VerifyPayCheck(paycheck)
 		if err != nil {
@@ -103,7 +105,7 @@ func TestVerifyPayCheck(t *testing.T) {
 		}
 	}
 }
-*/
+
 func TestCallContract(t *testing.T) {
 
 	op, _ := operator.NewOperator(
@@ -143,6 +145,4 @@ func TestCallContract(t *testing.T) {
 
 	// call contract with this paycheck
 	pro.CallContract(pchk)
-
-	fmt.Println("call contract complete")
 }
