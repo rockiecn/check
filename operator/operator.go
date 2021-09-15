@@ -12,27 +12,28 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
-	"github.com/rockiecn/check/utils"
+	com "github.com/rockiecn/check/common"
+	"github.com/rockiecn/check/recorder"
 )
 
 type Operator struct {
-	OperatorSK   string
-	OperatorAddr string
-	ContractAddr string
+	OpSK   string
+	OpAddr common.Address
+
+	ContractAddr common.Address
 	Host         string
 
-	Nonces map[string]*big.Int // provider to nonce, each provider's nonce
+	// each provider's nonce
+	Nonces map[common.Address]*big.Int
 
-	//
-	History map[string]*check.Check // keyHash -> key, check, key: "operator:xxx, provider:xxx, nonce:xxx"
-
+	// recorder for check
+	CheckRecorder *recorder.CRecorder
 }
 
 type IOperator interface {
-	DeployContract() (txHash string, err error)
 	GenerateCheck(from string, to string, value *big.Int, nonce *big.Int) (*check.Check, error)
 	RecordCheck(check *check.Check) error
-	Sign(check *check.Check, skByte []byte) ([]byte, error)
+	DeployContract() (string, common.Address, error)
 }
 
 func NewOperator(sk string, token string) (*Operator, error) {
@@ -40,66 +41,52 @@ func NewOperator(sk string, token string) (*Operator, error) {
 
 	op.Host = "http://localhost:8545"
 
-	op.OperatorSK = sk
-	op.OperatorAddr = utils.KeyToAddr(sk)
+	op.OpSK = sk
+	op.OpAddr = com.KeyToAddr(sk)
+
+	_, contract, _ := op.DeployContract()
+	op.ContractAddr = contract
+
+	op.Nonces = make(map[common.Address]*big.Int)
+
+	op.CheckRecorder = recorder.NewCRecorder()
 
 	return op, nil
 }
 
 func (op *Operator) GenerateCheck(
-	value *big.Int, // value of this check
-	token string, // token address
-	from string, // from address
-	to string, // to address
-	nonce *big.Int, // nonce
-) (*check.Check, error) {
+	value *big.Int,
+	token common.Address,
+	from common.Address,
+	to common.Address) (*check.Check, error) {
 
 	chk := new(check.Check)
 
 	chk.Value = value
 	chk.TokenAddr = token
-	chk.From = from
-	chk.To = to
-	chk.Nonce = nonce
+	chk.FromAddr = from
+	chk.ToAddr = to
+	chk.Nonce = op.Nonces[to]
+	// nonce = nonce + 1
+	bigOne := big.NewInt(1)
+	op.Nonces[to].Add(op.Nonces[to], bigOne)
 
-	chk.OperatorAddr = utils.KeyToAddr(op.OperatorSK)
+	chk.OpAddr = com.KeyToAddr(op.OpSK)
 	chk.ContractAddr = op.ContractAddr
 
-	sigByte, _ := op.Sign(chk)
-	chk.CheckSig = sigByte
+	chk.Sign(op.OpSK)
+
+	op.CheckRecorder.Record(chk)
 
 	return chk, nil
-
 }
 
-// Sign check by operator's sk
-func (op *Operator) Sign(check *check.Check) ([]byte, error) {
-
-	hash := utils.CheckHash(check)
-
-	//
-	priKeyECDSA, err := crypto.HexToECDSA(op.OperatorSK)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-
-	// sign to bytes
-	sigByte, err := crypto.Sign(hash, priKeyECDSA)
-	if err != nil {
-		log.Print(err)
-		return nil, err
-	}
-
-	return sigByte, nil
-
-}
-
+// todo: called by NewOperator
 func (op *Operator) DeployContract() (string, common.Address, error) {
 
 	var contractAddr common.Address
 
-	client, err := utils.GetClient(op.Host)
+	client, err := com.GetClient(op.Host)
 	if err != nil {
 		fmt.Println("failed to dial geth", err)
 		return "", contractAddr, err
@@ -107,7 +94,7 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 	defer client.Close()
 
 	// get sk
-	priKeyECDSA, err := crypto.HexToECDSA(op.OperatorSK)
+	priKeyECDSA, err := crypto.HexToECDSA(op.OpSK)
 	if err != nil {
 		fmt.Println("HexToECDSA err: ", err)
 		return "", contractAddr, err
