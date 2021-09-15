@@ -54,11 +54,7 @@ func NewOperator(sk string, token string) (*Operator, error) {
 	return op, nil
 }
 
-func (op *Operator) GenCheck(
-	value *big.Int,
-	token common.Address,
-	from common.Address,
-	to common.Address) (*check.Check, error) {
+func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error) {
 
 	chk := new(check.Check)
 

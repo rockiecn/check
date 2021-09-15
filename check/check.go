@@ -19,6 +19,12 @@ type Check struct {
 	CheckSig     []byte
 }
 
+type ICheck interface {
+	Sign(sk string) error
+	Verify() (bool, error)
+	Hash() []byte
+}
+
 // Sign check
 func (chk *Check) Sign(sk string) error {
 

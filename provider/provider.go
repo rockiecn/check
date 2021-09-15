@@ -22,7 +22,6 @@ type Provider struct {
 }
 
 type IProvider interface {
-	NewProvider(sk string) (*Provider, error)
 	WithDraw(paycheque *check.Paycheck) error
 }
 
