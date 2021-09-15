@@ -44,5 +44,7 @@ func (user *User) GeneratePaycheck(chk *check.Check, payValue *big.Int) (*check.
 		return nil, err
 	}
 
+	user.PaycheckRecorder.Record(pchk)
+
 	return pchk, nil
 }
