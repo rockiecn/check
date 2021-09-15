@@ -33,7 +33,7 @@ func NewUser(sk string) (*User, error) {
 }
 
 // generate Paycheck based on check, sig of Paycheck is updated
-func (user *User) GeneratePaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error) {
+func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error) {
 	pchk := new(check.Paycheck)
 	pchk.Check = *chk
 	pchk.PayValue = payValue
