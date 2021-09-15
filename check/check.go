@@ -28,14 +28,14 @@ func (chk *Check) Sign(sk string) error {
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
 		log.Print(err)
-		return nil, err
+		return err
 	}
 
 	// sign to bytes
 	sigByte, err := crypto.Sign(hash, priKeyECDSA)
 	if err != nil {
 		log.Print(err)
-		return nil, err
+		return err
 	}
 
 	chk.CheckSig = sigByte
@@ -110,14 +110,14 @@ func (pchk *Paycheck) Sign(sk string) error {
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
 		log.Print(err)
-		return nil, err
+		return err
 	}
 
 	// sign to bytes
 	sigByte, err := crypto.Sign(hash, priKeyECDSA)
 	if err != nil {
 		log.Print(err)
-		return nil, err
+		return err
 	}
 
 	pchk.PaycheckSig = sigByte
