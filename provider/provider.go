@@ -88,9 +88,13 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 // make sure a paycheck is legal
 func (pro *Provider) Legalize(pc *check.Paycheck) (bool, error) {
 	// paycheck signed by check.from
-	pc.Verify()
+	if ok, _ := pc.Verify(); !ok {
+		return false, errors.New("paycheck not signed by check.from")
+	}
 	// check signed by check.operator
-	pc.Check.Verify()
+	if ok, _ := pc.Check.Verify(); !ok {
+		return false, errors.New("check not signed by check.operator")
+	}
 
 	// to address
 	if pc.Check.ToAddr != pro.ProviderAddr {
