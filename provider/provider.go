@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
@@ -17,22 +18,21 @@ type Provider struct {
 
 	Host string
 
-	// recorder for paycheck
-	PaycheckRecorder *recorder.PRecorder
+	Recorder *recorder.Recorder
 }
 
 type IProvider interface {
-	WithDraw(paycheque *check.Paycheck) error
+	WithDraw(pc *check.Paycheck) error
 }
 
-func NewProvider(sk string) (*Provider, error) {
+func New(sk string) (IProvider, error) {
 	pro := new(Provider)
 	pro.ProviderSK = sk
 	pro.ProviderAddr = comn.KeyToAddr(sk)
 
-	pro.Host = "http://localhost:8545"
+	pro.Recorder = recorder.New()
 
-	pro.PaycheckRecorder = recorder.NewPRecorder()
+	pro.Host = "http://localhost:8545"
 
 	return pro, nil
 }
@@ -74,7 +74,7 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 		PayValue:    pc.PayValue,
 		PaycheckSig: pc.PaycheckSig,
 	}
-	_, err = cashInstance.ApplyCheck(auth, cashpc)
+	_, err = cashInstance.Withdraw(auth, cashpc)
 	if err != nil {
 		fmt.Println("tx failed :", err)
 		return err
@@ -83,4 +83,56 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 	fmt.Println("-> Now mine a block to complete tx.")
 
 	return nil
+}
+
+// make sure a paycheck is legal
+func (pro *Provider) Legalize(pc *check.Paycheck) (bool, error) {
+	// paycheck signed by check.from
+	pc.Verify()
+	// check signed by check.operator
+	pc.Check.Verify()
+
+	// to address
+	if pc.Check.ToAddr != pro.ProviderAddr {
+		return false, errors.New("check.to must be provider's address")
+	}
+
+	// value
+	if pc.PayValue.Cmp(pc.Check.Value) > 0 {
+		return false, errors.New("illegal payvalue, should not larger than value")
+	}
+
+	// nonce
+	nonceContract, _ := pro.GetNonce(pc)
+	if pc.Check.Nonce < nonceContract {
+		return false, errors.New("check is obsoleted, cannot withdraw")
+	}
+
+	return true, nil
+}
+
+func (pro *Provider) GetNonce(pc *check.Paycheck) (uint64, error) {
+
+	cli, err := comn.GetClient(pro.Host)
+	if err != nil {
+		fmt.Println("failed to dial geth", err)
+		return 0, err
+	}
+	defer cli.Close()
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(pc.Check.ContractAddr, cli)
+	if err != nil {
+		fmt.Println("NewCash err: ", err)
+		return 0, err
+	}
+
+	// get nonce
+	nonce, err := cashInstance.GetNonce(nil, pc.Check.ToAddr)
+	if err != nil {
+		fmt.Println("tx failed :", err)
+		return 0, err
+	}
+
+	return nonce, nil
 }

@@ -2,6 +2,7 @@ package common
 
 import (
 	"crypto/ecdsa"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"math/big"
@@ -70,4 +71,10 @@ func MakeAuth(
 	auth.Nonce = nonce
 	auth.GasLimit = gasLimit
 	return auth, nil
+}
+
+func Uint64ToBytes(i uint64) []byte {
+	var buf = make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(i))
+	return buf
 }

@@ -9,7 +9,7 @@ import "./library/SafeMath.sol";
 struct Check {
     uint256 value;         // value of the check, payvalue shoud not exceed value
     address tokenAddr;      // token address, point out which token to pay
-    uint256 nonce;          // nonce of the check, check's nonce should not smaller than it.
+    uint64  nonce;          // nonce of the check, check's nonce should not smaller than it.
     address fromAddr;       // buyer of this check, should be check's signer
 	address toAddr;         // receiver of check's money, point out who to pay
 	address opAddr;         // operator of this cheuqe, shuould be contract's owner
@@ -27,21 +27,17 @@ struct Paycheck {
 contract Cash  {
     using SafeMath for uint256;
 
-    // event Show256(uint256);
-    // event Showaddr(address);
-    // event Showbytes(bytes);
-    
-
     event Received(address, uint256);
     event Paid(address, uint256);
     
     address owner;
-    mapping(address => uint256) public nodeNonce;
+    mapping(address => uint64) public nodeNonce;
     
 
     // constructor
     constructor() payable {
         owner = msg.sender;
+        nodeNonce[owner]=123; // for test
     }
     
     // receiver
@@ -50,7 +46,7 @@ contract Cash  {
     }
 
     // called by storage
-    function apply_check(Paycheck memory paycheck) public payable returns(bool) {
+    function withdraw(Paycheck memory paycheck) public payable returns(bool) {
         
         require(paycheck.check.nonce >= nodeNonce[paycheck.check.toAddr], "check.nonce too old");
         require(paycheck.payValue <= paycheck.check.value, "payvalue should not exceed value of check.");
@@ -89,13 +85,13 @@ contract Cash  {
         emit Paid(paycheck.check.toAddr, paycheck.payValue);
         
         // update nonce after paid
-        nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce.add(1);
+        nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce + 1;
 
         return true;
     }
 
     // get nonce of a specified node
-    function get_node_nonce(address node) public view returns(uint256) {
+    function get_nonce(address node) public view returns(uint64) {
         return nodeNonce[node];
     }
     
@@ -103,11 +99,4 @@ contract Cash  {
     function get_owner() public view returns(address) {
         return owner;
     }
-    
-    //  uint256 to bytes
-    function toBytes1(uint256 x) public pure returns (bytes memory b) {
-        b = new bytes(32);
-        assembly { mstore(add(b, 32), x) }
-    }
-
 }

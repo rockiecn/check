@@ -1,4 +1,8 @@
-// package operator
+package operator
+
+import (
+	"testing"
+)
 
 // import (
 // 	"bytes"
@@ -135,3 +139,8 @@
 
 // 	_, _ = txHash, comAddr
 // }
+
+func Test(t *testing.T) {
+	_, _ = New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248a380db8b12059061")
+
+}

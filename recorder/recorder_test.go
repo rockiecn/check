@@ -26,7 +26,7 @@ func Test(t *testing.T) {
 			Check: check.Check{
 				Value:        big100,
 				TokenAddr:    common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-				Nonce:        big1,
+				Nonce:        1,
 				FromAddr:     common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
 				ToAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
 				OpAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
@@ -40,7 +40,7 @@ func Test(t *testing.T) {
 			Check: check.Check{
 				Value:        big200,
 				TokenAddr:    common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
-				Nonce:        big2,
+				Nonce:        2,
 				FromAddr:     common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 				ToAddr:       common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 				OpAddr:       common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
@@ -54,7 +54,7 @@ func Test(t *testing.T) {
 			Check: check.Check{
 				Value:        big300,
 				TokenAddr:    common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
-				Nonce:        big3,
+				Nonce:        3,
 				FromAddr:     common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 				ToAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 				OpAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
@@ -66,13 +66,9 @@ func Test(t *testing.T) {
 		},
 	}
 
-	rc := NewPRecorder()
+	rc := New()
 
-	// write payckecks into recorder
-	for _, pc := range paychecks {
-		rc.Record(&pc)
-	}
+	_ = paychecks
+	_ = rc
 
-	// show all paychecks
-	rc.List()
 }

@@ -1,92 +1,56 @@
 package recorder
 
 import (
-	"fmt"
-	"math/big"
+	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/check"
 )
 
+type Key struct {
+	Operator common.Address
+	Provider common.Address
+	Nonce    uint64
+}
+
+type Entry map[*Key]interface{}
+
 // recorder for paycheck
-type PRecorder struct {
-	Data map[common.Address]map[common.Address]map[*big.Int]check.Paycheck
+type Recorder struct {
+	Entrys Entry
 }
 
-func NewPRecorder() *PRecorder {
-	prec := new(PRecorder)
-	return prec
+func New() *Recorder {
+	rec := new(Recorder)
+	return rec
 }
 
-// record a paycheck into data pool.
-func (prec *PRecorder) Record(pchk *check.Paycheck) {
+func (rec *Recorder) Record(entry interface{}) error {
 
-	op := pchk.Check.OpAddr
-	pro := pchk.Check.ToAddr
-	nonce := pchk.Check.Nonce
-
-	if prec.Data == nil {
-		opMap := make(map[common.Address]map[common.Address]map[*big.Int]check.Paycheck)
-		prec.Data = opMap
-	}
-
-	if prec.Data[op] == nil {
-		proMap := make(map[common.Address]map[*big.Int]check.Paycheck)
-		prec.Data[op] = proMap
-	}
-
-	if prec.Data[op][pro] == nil {
-		nonMap := make(map[*big.Int]check.Paycheck)
-		prec.Data[op][pro] = nonMap
-	}
-
-	prec.Data[op][pro][nonce] = *pchk
-}
-
-func (rec *PRecorder) List() {
-	for opaddr, proMap := range rec.Data {
-		fmt.Println("---> operator:", opaddr)
-		for proaddr, nonceMap := range proMap {
-			fmt.Println("--> provider:", proaddr)
-			for nonce, pc := range nonceMap {
-				fmt.Println("->nonce:", nonce)
-				fmt.Println("Value:", pc.Check.Value)
-				fmt.Println("TokenAddr:", pc.Check.TokenAddr)
-				fmt.Println("From:", pc.Check.FromAddr)
-				fmt.Println("To:", pc.Check.ToAddr)
-				fmt.Println("OperatorAddr:", pc.Check.OpAddr)
-				fmt.Println("PayValue:", pc.PayValue)
-			}
+	if c, ok := entry.(*check.Check); ok {
+		key := new(Key)
+		key.Operator = c.OpAddr
+		key.Provider = c.ToAddr
+		key.Nonce = c.Nonce
+		if rec.Entrys == nil {
+			rec.Entrys = make(Entry)
 		}
-		fmt.Println()
-	}
-}
-
-// recorder for check
-type CRecorder struct {
-	Data map[common.Address]map[*big.Int]check.Check
-}
-
-func NewCRecorder() *CRecorder {
-	crec := new(CRecorder)
-	return crec
-}
-
-// record a paycheck into data pool.
-func (crec *CRecorder) Record(chk *check.Check) {
-
-	pro := chk.ToAddr
-	nonce := chk.Nonce
-
-	if crec.Data == nil {
-		proNon := make(map[common.Address]map[*big.Int]check.Check)
-		crec.Data = proNon
+		rec.Entrys[key] = c
+		return nil
 	}
 
-	if crec.Data[pro] == nil {
-		nonChk := make(map[*big.Int]check.Check)
-		crec.Data[pro] = nonChk
+	if pc, ok := entry.(*check.Paycheck); ok {
+		key := new(Key)
+		key.Operator = pc.Check.OpAddr
+		key.Provider = pc.Check.ToAddr
+		key.Nonce = pc.Check.Nonce
+		if rec.Entrys == nil {
+			rec.Entrys = make(Entry)
+		}
+		rec.Entrys[key] = pc
+		return nil
 	}
 
-	crec.Data[pro][nonce] = *chk
+	return errors.New("entry type error, must be check or paycheck")
+
 }

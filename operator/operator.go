@@ -3,16 +3,16 @@ package operator
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
-	com "github.com/rockiecn/check/common"
+	comn "github.com/rockiecn/check/common"
 	"github.com/rockiecn/check/recorder"
 )
 
@@ -24,55 +24,53 @@ type Operator struct {
 	Host         string
 
 	// each provider's nonce
-	Nonces map[common.Address]*big.Int
+	Nonces map[common.Address]uint64
 
-	// recorder for check
-	CheckRecorder *recorder.CRecorder
+	Recorder *recorder.Recorder
 }
 
 type IOperator interface {
-	GenerateCheck(from string, to string, value *big.Int, nonce *big.Int) (*check.Check, error)
-	RecordCheck(check *check.Check) error
+	GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error)
 	DeployContract() (string, common.Address, error)
 }
 
-func NewOperator(sk string, token string) (*Operator, error) {
+func New(sk string, token string) (IOperator, error) {
 	op := new(Operator)
 
-	op.Host = "http://localhost:8545"
-
 	op.OpSK = sk
-	op.OpAddr = com.KeyToAddr(sk)
+	op.OpAddr = comn.KeyToAddr(sk)
 
+	op.Nonces = make(map[common.Address]uint64)
+
+	op.Recorder = recorder.New()
+
+	op.Host = "http://localhost:8545"
 	_, contract, _ := op.DeployContract()
 	op.ContractAddr = contract
-
-	op.Nonces = make(map[common.Address]*big.Int)
-
-	op.CheckRecorder = recorder.NewCRecorder()
 
 	return op, nil
 }
 
 func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error) {
 
+	// construct check
 	chk := new(check.Check)
-
 	chk.Value = value
 	chk.TokenAddr = token
 	chk.FromAddr = from
 	chk.ToAddr = to
 	chk.Nonce = op.Nonces[to]
-	// nonce = nonce + 1
-	bigOne := big.NewInt(1)
-	op.Nonces[to].Add(op.Nonces[to], bigOne)
-
-	chk.OpAddr = com.KeyToAddr(op.OpSK)
+	chk.OpAddr = comn.KeyToAddr(op.OpSK)
 	chk.ContractAddr = op.ContractAddr
 
 	chk.Sign(op.OpSK)
 
-	op.CheckRecorder.Record(chk)
+	if op.Nonces == nil {
+		return nil, errors.New("nonces nil")
+	}
+	op.Nonces[to] = op.Nonces[to] + 1
+
+	op.Recorder.Record(chk)
 
 	return chk, nil
 }
@@ -82,14 +80,14 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 
 	var contractAddr common.Address
 
-	client, err := com.GetClient(op.Host)
+	client, err := comn.GetClient(op.Host)
 	if err != nil {
 		fmt.Println("failed to dial geth", err)
 		return "", contractAddr, err
 	}
 	defer client.Close()
 
-	// get sk
+	// string to ecdsa
 	priKeyECDSA, err := crypto.HexToECDSA(op.OpSK)
 	if err != nil {
 		fmt.Println("HexToECDSA err: ", err)
@@ -98,14 +96,15 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 
 	// get pubkey
 	pubKey := priKeyECDSA.Public()
+	// ecdsa
 	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
 	if !ok {
 		log.Println("error casting public key to ECDSA")
 		return "", contractAddr, err
 	}
-
-	// pubkey to address
+	// get address
 	opComAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
+	// get nonce
 	nonce, err := client.PendingNonceAt(context.Background(), opComAddr)
 	if err != nil {
 		log.Println(err)
@@ -119,26 +118,12 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 		return "", contractAddr, err
 	}
 
-	//tx := types.NewTransaction(nonce, toAddress, value, gasLimit, gasPrice, nil)
-	auth, err := bind.NewKeyedTransactorWithChainID(priKeyECDSA, big.NewInt(1337))
+	// transfer to big.Int for contract
+	bigNonce := new(big.Int).SetUint64(nonce)
+	auth, err := comn.MakeAuth(op.OpSK, nil, bigNonce, gasPrice, 9000000)
 	if err != nil {
-		log.Println("NewKeyedTransactorWithChainID err:", err)
-		return "", contractAddr, err
+		return "", common.Address{}, err
 	}
-
-	// set nonce
-	auth.Nonce = big.NewInt(int64(nonce))
-	// string to bigint
-	bn := new(big.Int)
-	bn, ok2 := bn.SetString("10000000000000000000", 10) // deploy 10 eth
-	if !ok2 {
-		fmt.Println("SetString: error")
-		fmt.Println("big number SetString error")
-		return "", contractAddr, err
-	}
-	auth.Value = bn                 // deploy 100 eth
-	auth.GasLimit = uint64(7000000) // in units
-	auth.GasPrice = gasPrice
 
 	contractAddr, tx, _, err := cash.DeployCash(auth, client)
 	if err != nil {

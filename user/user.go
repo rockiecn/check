@@ -14,20 +14,23 @@ type User struct {
 	UserSK   string
 	UserAddr common.Address
 
-	// recorder for paycheck
-	PaycheckRecorder *recorder.PRecorder
+	Recorder *recorder.Recorder
+
+	Host string
 }
 
 type IUser interface {
-	GeneratePaycheck(check *check.Check, payValue *big.Int) (*check.Paycheck, error)
+	GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error)
 }
 
-func NewUser(sk string) (*User, error) {
+func New(sk string) (IUser, error) {
 	user := new(User)
 	user.UserSK = sk
 	user.UserAddr = comn.KeyToAddr(sk)
 
-	user.PaycheckRecorder = recorder.NewPRecorder()
+	user.Recorder = recorder.New()
+
+	user.Host = "http://localhost:8545"
 
 	return user, nil
 }
@@ -44,7 +47,7 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 		return nil, err
 	}
 
-	user.PaycheckRecorder.Record(pchk)
+	// todo: record pchk into data
 
 	return pchk, nil
 }

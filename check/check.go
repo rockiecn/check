@@ -6,12 +6,13 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	comn "github.com/rockiecn/check/common"
 )
 
 type Check struct {
 	Value        *big.Int
 	TokenAddr    common.Address
-	Nonce        *big.Int
+	Nonce        uint64
 	FromAddr     common.Address
 	ToAddr       common.Address
 	OpAddr       common.Address
@@ -22,13 +23,14 @@ type Check struct {
 type ICheck interface {
 	Sign(sk string) error
 	Verify() (bool, error)
-	Hash() []byte
+	Serialize() []byte
+	GetNonce() (uint64, error)
 }
 
 // Sign check
 func (chk *Check) Sign(sk string) error {
 
-	hash := chk.Hash()
+	hash := chk.Serialize()
 
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
@@ -52,7 +54,7 @@ func (chk *Check) Sign(sk string) error {
 // verify signature of a check
 func (chk *Check) Verify() (bool, error) {
 
-	hash := chk.Hash()
+	hash := chk.Serialize()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, chk.CheckSig)
@@ -70,16 +72,11 @@ func (chk *Check) Verify() (bool, error) {
 }
 
 // calc hash of check, used to sign check and verify
-func (chk *Check) Hash() []byte {
+func (chk *Check) Serialize() []byte {
 
 	valuePad32 := common.LeftPadBytes(chk.Value.Bytes(), 32)
-	noncePad32 := common.LeftPadBytes(chk.Nonce.Bytes(), 32)
+	noncePad32 := common.LeftPadBytes(comn.Uint64ToBytes(chk.Nonce), 32)
 
-	// tokenBytes, _ := hex.DecodeString(Check.TokenAddr)
-	// fromBytes, _ := hex.DecodeString(Check.From)
-	// toBytes, _ := hex.DecodeString(Check.To)
-	// operatorBytes, _ := hex.DecodeString(Check.OperatorAddr)
-	// contractBytes, _ := hex.DecodeString(Check.ContractAddr)
 	tokenBytes := chk.TokenAddr.Bytes()
 	fromBytes := chk.FromAddr.Bytes()
 	toBytes := chk.ToAddr.Bytes()
@@ -110,7 +107,7 @@ type Paycheck struct {
 // Sign paycheck by user's sk
 func (pchk *Paycheck) Sign(sk string) error {
 
-	hash := pchk.Hash()
+	hash := pchk.Serialize()
 
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
@@ -133,7 +130,7 @@ func (pchk *Paycheck) Sign(sk string) error {
 
 // verify signature of paycheck
 func (pchk *Paycheck) Verify() (bool, error) {
-	hash := pchk.Hash()
+	hash := pchk.Serialize()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, pchk.PaycheckSig)
@@ -151,10 +148,10 @@ func (pchk *Paycheck) Verify() (bool, error) {
 }
 
 // calc hash of check, used to sign check and verify
-func (pchk *Paycheck) Hash() []byte {
+func (pchk *Paycheck) Serialize() []byte {
 
 	valuePad32 := common.LeftPadBytes(pchk.Check.Value.Bytes(), 32)
-	noncePad32 := common.LeftPadBytes(pchk.Check.Nonce.Bytes(), 32)
+	noncePad32 := common.LeftPadBytes(comn.Uint64ToBytes(pchk.Check.Nonce), 32)
 	payvaluePad32 := common.LeftPadBytes(pchk.PayValue.Bytes(), 32)
 
 	tokenBytes := pchk.Check.TokenAddr.Bytes()
