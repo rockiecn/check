@@ -26,13 +26,12 @@ type IProvider interface {
 }
 
 func New(sk string) (IProvider, error) {
-	pro := new(Provider)
-	pro.ProviderSK = sk
-	pro.ProviderAddr = comn.KeyToAddr(sk)
-
-	pro.Recorder = recorder.New()
-
-	pro.Host = "http://localhost:8545"
+	pro := &Provider{
+		ProviderSK:   sk,
+		ProviderAddr: comn.KeyToAddr(sk),
+		Recorder:     recorder.New(),
+		Host:         "http://localhost:8545",
+	}
 
 	return pro, nil
 }

@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,26 +23,25 @@ type IUser interface {
 }
 
 func New(sk string) (IUser, error) {
-	user := new(User)
-	user.UserSK = sk
-	user.UserAddr = comn.KeyToAddr(sk)
-
-	user.Recorder = recorder.New()
-
-	user.Host = "http://localhost:8545"
+	user := &User{
+		UserSK:   sk,
+		UserAddr: comn.KeyToAddr(sk),
+		Recorder: recorder.New(),
+		Host:     "http://localhost:8545",
+	}
 
 	return user, nil
 }
 
 // generate Paycheck based on check, sig of Paycheck is updated
 func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error) {
-	pchk := new(check.Paycheck)
-	pchk.Check = *chk
-	pchk.PayValue = payValue
+	pchk := &check.Paycheck{
+		Check:    *chk,
+		PayValue: payValue,
+	}
 
 	err := pchk.Sign(user.UserSK)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 

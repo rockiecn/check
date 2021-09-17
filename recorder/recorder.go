@@ -13,39 +13,36 @@ type Key struct {
 	Nonce    uint64
 }
 
-type Entry map[*Key]interface{}
-
 // recorder for paycheck
 type Recorder struct {
-	Entrys Entry
+	Entrys map[Key]interface{}
 }
 
 func New() *Recorder {
-	rec := new(Recorder)
+
+	rec := &Recorder{
+		Entrys: make(map[Key]interface{}),
+	}
 	return rec
 }
 
 func (rec *Recorder) Record(entry interface{}) error {
 
 	if c, ok := entry.(*check.Check); ok {
-		key := new(Key)
-		key.Operator = c.OpAddr
-		key.Provider = c.ToAddr
-		key.Nonce = c.Nonce
-		if rec.Entrys == nil {
-			rec.Entrys = make(Entry)
+		key := Key{
+			Operator: c.OpAddr,
+			Provider: c.ToAddr,
+			Nonce:    c.Nonce,
 		}
 		rec.Entrys[key] = c
 		return nil
 	}
 
 	if pc, ok := entry.(*check.Paycheck); ok {
-		key := new(Key)
-		key.Operator = pc.Check.OpAddr
-		key.Provider = pc.Check.ToAddr
-		key.Nonce = pc.Check.Nonce
-		if rec.Entrys == nil {
-			rec.Entrys = make(Entry)
+		key := Key{
+			Operator: pc.Check.OpAddr,
+			Provider: pc.Check.ToAddr,
+			Nonce:    pc.Check.Nonce,
 		}
 		rec.Entrys[key] = pc
 		return nil

@@ -3,7 +3,6 @@ package operator
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -54,20 +53,18 @@ func New(sk string, token string) (IOperator, error) {
 func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error) {
 
 	// construct check
-	chk := new(check.Check)
-	chk.Value = value
-	chk.TokenAddr = token
-	chk.FromAddr = from
-	chk.ToAddr = to
-	chk.Nonce = op.Nonces[to]
-	chk.OpAddr = comn.KeyToAddr(op.OpSK)
-	chk.ContractAddr = op.ContractAddr
+	chk := &check.Check{
+		Value:        value,
+		TokenAddr:    token,
+		FromAddr:     from,
+		ToAddr:       to,
+		Nonce:        op.Nonces[to],
+		OpAddr:       op.OpAddr,
+		ContractAddr: op.ContractAddr,
+	}
 
 	chk.Sign(op.OpSK)
 
-	if op.Nonces == nil {
-		return nil, errors.New("nonces nil")
-	}
 	op.Nonces[to] = op.Nonces[to] + 1
 
 	op.Recorder.Record(chk)
