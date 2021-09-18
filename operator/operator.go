@@ -20,7 +20,6 @@ type Operator struct {
 	OpAddr common.Address
 
 	ContractAddr common.Address
-	Host         string
 
 	// each provider's nonce
 	Nonces map[common.Address]uint64
@@ -43,7 +42,6 @@ func New(sk string, token string) (IOperator, error) {
 
 	op.Recorder = recorder.New()
 
-	op.Host = "http://localhost:8545"
 	_, contract, _ := op.DeployContract()
 	op.ContractAddr = contract
 
@@ -77,7 +75,7 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 
 	var contractAddr common.Address
 
-	client, err := comn.GetClient(op.Host)
+	client, err := comn.GetClient(comn.HOST)
 	if err != nil {
 		fmt.Println("failed to dial geth", err)
 		return "", contractAddr, err
