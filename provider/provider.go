@@ -42,21 +42,19 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 
 	cli, err := comn.GetClient(pro.Host)
 	if err != nil {
-		fmt.Println("failed to dial geth", err)
-		return err
+		return errors.New("failed to dial geth")
 	}
 	defer cli.Close()
 
 	auth, err := comn.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
 	if err != nil {
-		return err
+		return errors.New("make auth failed")
 	}
 
 	// get contract instance from address
 	cashInstance, err := cash.NewCash(pc.Check.ContractAddr, cli)
 	if err != nil {
-		fmt.Println("NewCash err: ", err)
-		return err
+		return errors.New("newcash failed")
 	}
 
 	// type convertion, from pc to cashpc for contract
@@ -76,8 +74,7 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 	}
 	_, err = cashInstance.Withdraw(auth, cashpc)
 	if err != nil {
-		fmt.Println("tx failed :", err)
-		return err
+		return errors.New("tx failed")
 	}
 
 	fmt.Println("-> Now mine a block to complete tx.")

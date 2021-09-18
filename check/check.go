@@ -2,7 +2,6 @@ package check
 
 import (
 	"errors"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -36,13 +35,13 @@ func (chk *Check) Sign(sk string) error {
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
-		return err
+		return errors.New("hex to ecdsa failed when sign check")
 	}
 
 	// sign to bytes
 	sigByte, err := crypto.Sign(hash, priKeyECDSA)
 	if err != nil {
-		return err
+		return errors.New("sign failed when sign check")
 	}
 
 	chk.CheckSig = sigByte
@@ -110,15 +109,13 @@ func (pchk *Paycheck) Sign(sk string) error {
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
-		log.Print(err)
-		return err
+		return errors.New("hex to ecdsa failed when sign paycheck")
 	}
 
 	// sign to bytes
 	sigByte, err := crypto.Sign(hash, priKeyECDSA)
 	if err != nil {
-		log.Print(err)
-		return err
+		return errors.New("sign paycheck error")
 	}
 
 	pchk.PaycheckSig = sigByte
@@ -137,9 +134,9 @@ func (pchk *Paycheck) Verify() (bool, error) {
 	}
 
 	// pub key to common.address
-	singerAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
+	signerAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
 
-	ok := singerAddr == pchk.Check.FromAddr
+	ok := signerAddr == pchk.Check.FromAddr
 
 	return ok, nil
 }

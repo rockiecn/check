@@ -43,10 +43,14 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 
 	err := pchk.Sign(user.UserSK)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("sign payckeck failed")
 	}
 
-	// todo: record pchk into data
+	// record pchk into data
+	err = user.Recorder.Record(pchk)
+	if err != nil {
+		return nil, errors.New("record paycheck failed")
+	}
 
 	return pchk, nil
 }

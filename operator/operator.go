@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
@@ -64,13 +65,19 @@ func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.A
 	}
 
 	// sign by operator
-	chk.Sign(op.OpSK)
+	err := chk.Sign(op.OpSK)
+	if err != nil {
+		return nil, errors.New("sign check failed")
+	}
 
 	// nonce increase
 	op.Nonces[to] = op.Nonces[to] + 1
 
 	// store check
-	op.Recorder.Record(chk)
+	err = op.Recorder.Record(chk)
+	if err != nil {
+		return nil, errors.New("record check failed")
+	}
 
 	return chk, nil
 }
