@@ -33,16 +33,17 @@ type IOperator interface {
 }
 
 func New(sk string, token string) (IOperator, error) {
-	op := new(Operator)
+	op := &Operator{
+		OpSK:     sk,
+		OpAddr:   comn.KeyToAddr(sk),
+		Nonces:   make(map[common.Address]uint64),
+		Recorder: recorder.New(),
+	}
 
-	op.OpSK = sk
-	op.OpAddr = comn.KeyToAddr(sk)
-
-	op.Nonces = make(map[common.Address]uint64)
-
-	op.Recorder = recorder.New()
-
-	_, contract, _ := op.DeployContract()
+	_, contract, err := op.DeployContract()
+	if err != nil {
+		return nil, err
+	}
 	op.ContractAddr = contract
 
 	return op, nil
@@ -61,10 +62,13 @@ func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.A
 		ContractAddr: op.ContractAddr,
 	}
 
+	// sign by operator
 	chk.Sign(op.OpSK)
 
+	// nonce increase
 	op.Nonces[to] = op.Nonces[to] + 1
 
+	// store check
 	op.Recorder.Record(chk)
 
 	return chk, nil
