@@ -2,6 +2,7 @@ package recorder
 
 import (
 	"encoding/hex"
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -70,5 +71,87 @@ func Test(t *testing.T) {
 
 	_ = paychecks
 	_ = rc
+}
 
+func TestRecord(t *testing.T) {
+	rec := New()
+	pc := new(check.Paycheck)
+	pc.Check.ToAddr = common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC1")
+	pc.PayValue = big.NewInt(1)
+	rec.Record(pc)
+	pc = new(check.Paycheck)
+	pc.Check.ToAddr = common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC2")
+	pc.PayValue = big.NewInt(2)
+	rec.Record(pc)
+	pc = new(check.Paycheck)
+	pc.Check.ToAddr = common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC3")
+	pc.PayValue = big.NewInt(3)
+	rec.Record(pc)
+
+	c := new(check.Check)
+	c.ToAddr = common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4")
+	c.Value = big.NewInt(1)
+	rec.Record(c)
+	c = new(check.Check)
+	c.ToAddr = common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC5")
+	c.Value = big.NewInt(2)
+	rec.Record(c)
+	c = new(check.Check)
+	c.ToAddr = common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC6")
+	c.Value = big.NewInt(3)
+	rec.Record(c)
+
+	rec.ShowAll()
+}
+
+func TestExist(t *testing.T) {
+
+	// checks for test
+	tests := []check.Check{
+		{
+			Nonce:  1,
+			ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
+		}, // exist: true
+		{
+			Nonce:  4,
+			ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
+		}, // not exist: false
+	}
+
+	// checks be put into Entrys
+	records := []check.Check{
+		{
+			Nonce:  1,
+			ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
+		},
+		{
+			Nonce:  2,
+			ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
+		},
+		{
+			Nonce:  3,
+			ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
+		},
+		{
+			Nonce:  1,
+			ToAddr: common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+		},
+	}
+
+	// new Record
+	rec := New()
+
+	// put all checks into Entrys
+	for _, c := range records {
+		rec.Record(&c)
+	}
+
+	// test
+	for _, t := range tests {
+		if ok, _ := rec.Exist(&t); ok {
+			fmt.Printf("check exists, to:%s, nonce:%d\n", t.ToAddr.String(), t.Nonce)
+		} else {
+			fmt.Printf("check not exists, to:%s, nonce:%d\n", t.ToAddr.String(), t.Nonce)
+		}
+	}
 }

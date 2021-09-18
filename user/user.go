@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -27,7 +28,6 @@ func New(sk string) (IUser, error) {
 		UserSK:   sk,
 		UserAddr: comn.KeyToAddr(sk),
 		Recorder: recorder.New(),
-		Host:     "http://localhost:8545",
 	}
 
 	return user, nil
@@ -48,4 +48,30 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 	// todo: record pchk into data
 
 	return pchk, nil
+}
+
+// tests before paycheck been stored
+func (user *User) PreStore(pc *check.Paycheck) (bool, error) {
+	// check signed by check.operator
+	if ok, _ := pc.Check.Verify(); !ok {
+		return false, errors.New("check not signed by check.operator")
+	}
+
+	// from address = user address
+	if pc.Check.FromAddr != user.UserAddr {
+		return false, errors.New("check's from address must be user")
+	}
+
+	// nonce >= contract.nonce
+	nonceContract, _ := comn.GetNonce(pc.Check.ContractAddr, pc.Check.ToAddr)
+	if pc.Check.Nonce < nonceContract {
+		return false, errors.New("check is obsoleted, cannot withdraw")
+	}
+
+	// paycheck should not exist
+	if ok, _ := user.Recorder.Exist(pc); ok {
+		return false, errors.New("paycheck already exist")
+	}
+
+	return true, nil
 }

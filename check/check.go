@@ -1,6 +1,7 @@
 package check
 
 import (
+	"errors"
 	"log"
 	"math/big"
 
@@ -35,14 +36,12 @@ func (chk *Check) Sign(sk string) error {
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
 	// sign to bytes
 	sigByte, err := crypto.Sign(hash, priKeyECDSA)
 	if err != nil {
-		log.Print(err)
 		return err
 	}
 
@@ -59,8 +58,7 @@ func (chk *Check) Verify() (bool, error) {
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, chk.CheckSig)
 	if err != nil {
-		log.Println("SigToPub err:", err)
-		return false, err
+		return false, errors.New("SigToPub err")
 	}
 
 	// pub key to common.address
@@ -135,8 +133,7 @@ func (pchk *Paycheck) Verify() (bool, error) {
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, pchk.PaycheckSig)
 	if err != nil {
-		log.Println("SigToPub err:", err)
-		return false, err
+		return false, errors.New("SigToPub err")
 	}
 
 	// pub key to common.address

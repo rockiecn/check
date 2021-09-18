@@ -3,17 +3,25 @@ package common
 import (
 	"crypto/ecdsa"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/rockiecn/check/cash"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
+
+type Common struct {
+	Host string
+}
+
+const HOST = "http://localhost:8545"
 
 // get address from private key
 func KeyToAddr(sk string) common.Address {
@@ -77,4 +85,28 @@ func Uint64ToBytes(i uint64) []byte {
 	var buf = make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
 	return buf
+}
+
+// get contract nonce
+func GetNonce(contract common.Address, to common.Address) (uint64, error) {
+
+	cli, err := GetClient(HOST)
+	if err != nil {
+		return 0, errors.New("failed to dial geth")
+	}
+	defer cli.Close()
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(contract, cli)
+	if err != nil {
+		return 0, errors.New("NewCash err")
+	}
+
+	// get nonce
+	nonce, err := cashInstance.GetNonce(nil, to)
+	if err != nil {
+		return 0, errors.New("tx failed")
+	}
+
+	return nonce, nil
 }

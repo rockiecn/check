@@ -84,15 +84,26 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 	return nil
 }
 
-// make sure a paycheck is legal
-func (pro *Provider) Legalize(pc *check.Paycheck) (bool, error) {
+// tests before paycheck been stored
+func (pro *Provider) PreStore(pc *check.Paycheck) (bool, error) {
+
+	// check signed by check.operator
+	if ok, _ := pc.Check.Verify(); !ok {
+		return false, errors.New("check not signed by check.operator")
+	}
+
 	// paycheck signed by check.from
 	if ok, _ := pc.Verify(); !ok {
 		return false, errors.New("paycheck not signed by check.from")
 	}
-	// check signed by check.operator
-	if ok, _ := pc.Check.Verify(); !ok {
-		return false, errors.New("check not signed by check.operator")
+
+	if pc.PayValue.Cmp(big.NewInt(0)) < 0 {
+		return false, errors.New("illegal payvalue, should not be negtive")
+	}
+
+	// payvalue <= value
+	if pc.PayValue.Cmp(pc.Check.Value) > 0 {
+		return false, errors.New("illegal payvalue, should not larger than value")
 	}
 
 	// to address
@@ -100,42 +111,16 @@ func (pro *Provider) Legalize(pc *check.Paycheck) (bool, error) {
 		return false, errors.New("check.to must be provider's address")
 	}
 
-	// value
-	if pc.PayValue.Cmp(pc.Check.Value) > 0 {
-		return false, errors.New("illegal payvalue, should not larger than value")
-	}
-
-	// nonce
-	nonceContract, _ := pro.GetNonce(pc)
+	// nonce >= contract.nonce
+	nonceContract, _ := comn.GetNonce(pc.Check.ContractAddr, pc.Check.ToAddr)
 	if pc.Check.Nonce < nonceContract {
 		return false, errors.New("check is obsoleted, cannot withdraw")
 	}
 
+	// paycheck should not exist
+	if ok, _ := pro.Recorder.Exist(pc); ok {
+		return false, errors.New("paycheck already exist")
+	}
+
 	return true, nil
-}
-
-func (pro *Provider) GetNonce(pc *check.Paycheck) (uint64, error) {
-
-	cli, err := comn.GetClient(pro.Host)
-	if err != nil {
-		fmt.Println("failed to dial geth", err)
-		return 0, err
-	}
-	defer cli.Close()
-
-	// get contract instance from address
-	cashInstance, err := cash.NewCash(pc.Check.ContractAddr, cli)
-	if err != nil {
-		fmt.Println("NewCash err: ", err)
-		return 0, err
-	}
-
-	// get nonce
-	nonce, err := cashInstance.GetNonce(nil, pc.Check.ToAddr)
-	if err != nil {
-		fmt.Println("tx failed :", err)
-		return 0, err
-	}
-
-	return nonce, nil
 }
