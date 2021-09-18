@@ -49,6 +49,7 @@ func New(sk string, token string) (IOperator, error) {
 	return op, nil
 }
 
+// generate a check
 func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error) {
 
 	// construct check

@@ -21,6 +21,7 @@ type User struct {
 
 type IUser interface {
 	GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error)
+	PreStore(pc *check.Paycheck) (bool, error)
 }
 
 func New(sk string) (IUser, error) {

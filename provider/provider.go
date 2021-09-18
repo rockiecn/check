@@ -23,6 +23,7 @@ type Provider struct {
 
 type IProvider interface {
 	WithDraw(pc *check.Paycheck) error
+	PreStore(pc *check.Paycheck) (bool, error)
 }
 
 func New(sk string) (IProvider, error) {
