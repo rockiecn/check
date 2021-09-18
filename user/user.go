@@ -68,7 +68,7 @@ func (user *User) PreStore(pc *check.Paycheck) (bool, error) {
 		return false, errors.New("check is obsoleted, cannot withdraw")
 	}
 
-	// paycheck should not exist
+	// paycheck should not exist in recorder
 	if ok, _ := user.Recorder.Exist(pc); ok {
 		return false, errors.New("paycheck already exist")
 	}
