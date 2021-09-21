@@ -5,8 +5,8 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -64,40 +64,38 @@ func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.A
 		ContractAddr: op.ContractAddr,
 	}
 
-	// sign by operator
+	// signed by operator
 	err := chk.Sign(op.OpSK)
 	if err != nil {
-		return nil, errors.New("sign check failed")
+		return nil, err
 	}
-
-	// nonce increase
-	op.Nonces[to] = op.Nonces[to] + 1
 
 	// store check
 	err = op.Recorder.Record(chk)
 	if err != nil {
-		return nil, errors.New("record check failed")
+		return nil, err
 	}
+
+	// update nonce
+	op.Nonces[to] = op.Nonces[to] + 1
 
 	return chk, nil
 }
 
-// todo: called by NewOperator
+//
 func (op *Operator) DeployContract() (string, common.Address, error) {
 
 	var contractAddr common.Address
 
-	client, err := comn.GetClient(comn.HOST)
+	ethClient, err := comn.GetClient(comn.HOST)
 	if err != nil {
-		fmt.Println("failed to dial geth", err)
 		return "", contractAddr, err
 	}
-	defer client.Close()
+	defer ethClient.Close()
 
 	// string to ecdsa
 	priKeyECDSA, err := crypto.HexToECDSA(op.OpSK)
 	if err != nil {
-		fmt.Println("HexToECDSA err: ", err)
 		return "", contractAddr, err
 	}
 
@@ -106,22 +104,19 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 	// ecdsa
 	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
 	if !ok {
-		log.Println("error casting public key to ECDSA")
-		return "", contractAddr, err
+		return "", contractAddr, errors.New("error casting public key to ECDSA")
 	}
 	// get address
 	opComAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
 	// get nonce
-	nonce, err := client.PendingNonceAt(context.Background(), opComAddr)
+	nonce, err := ethClient.PendingNonceAt(context.Background(), opComAddr)
 	if err != nil {
-		log.Println(err)
 		return "", contractAddr, err
 	}
 
 	// get gas price
-	gasPrice, err := client.SuggestGasPrice(context.Background())
+	gasPrice, err := ethClient.SuggestGasPrice(context.Background())
 	if err != nil {
-		log.Println(err)
 		return "", contractAddr, err
 	}
 
@@ -132,10 +127,20 @@ func (op *Operator) DeployContract() (string, common.Address, error) {
 		return "", common.Address{}, err
 	}
 
-	contractAddr, tx, _, err := cash.DeployCash(auth, client)
+	contractAddr, tx, _, err := cash.DeployCash(auth, ethClient)
 	if err != nil {
-		fmt.Println("deployCashErr:", err)
 		return "", contractAddr, err
+	}
+
+	// deploy contract, wait for mining.
+	for {
+		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
+		// receipt ok
+		if txReceipt != nil {
+			break
+		}
+		fmt.Println("deploy wait mining")
+		time.Sleep(time.Duration(3) * time.Second)
 	}
 
 	return tx.Hash().String(), contractAddr, nil

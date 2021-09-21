@@ -49,8 +49,9 @@ func GetClient(endPoint string) (*ethclient.Client, error) {
 		return nil, err
 	}
 
-	conn := ethclient.NewClient(rpcClient)
-	return conn, nil
+	ethClient := ethclient.NewClient(rpcClient)
+	return ethClient, nil
+
 }
 
 // MakeAuth - make a transactOpts to call contract
@@ -78,7 +79,9 @@ func MakeAuth(
 	auth.Value = moneyToContract //放进合约里的钱
 	auth.Nonce = nonce
 	auth.GasLimit = gasLimit
+
 	return auth, nil
+
 }
 
 func Uint64ToBytes(i uint64) []byte {

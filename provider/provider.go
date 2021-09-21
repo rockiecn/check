@@ -23,7 +23,7 @@ type Provider struct {
 
 type IProvider interface {
 	WithDraw(pc *check.Paycheck) error
-	PreStore(pc *check.Paycheck) (bool, error)
+	Store(pc *check.Paycheck) (bool, error)
 }
 
 func New(sk string) (IProvider, error) {
@@ -83,7 +83,7 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 }
 
 // tests before paycheck been stored
-func (pro *Provider) PreStore(pc *check.Paycheck) (bool, error) {
+func (pro *Provider) Store(pc *check.Paycheck) (bool, error) {
 
 	// check signed by check.operator
 	if ok, _ := pc.Check.Verify(); !ok {
@@ -116,10 +116,13 @@ func (pro *Provider) PreStore(pc *check.Paycheck) (bool, error) {
 		return false, errors.New("check is obsoleted, cannot withdraw")
 	}
 
-	// paycheck should not exist in recorder
-	if ok, _ := pro.Recorder.Exist(pc); ok {
-		return false, errors.New("paycheck already exist")
+	// valid?
+	if ok, _ := pro.Recorder.IsValid(pc); ok {
+		return false, errors.New("paycheck not valid")
 	}
+
+	// ok to store
+	pro.Recorder.Record(pc)
 
 	return true, nil
 }

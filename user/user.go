@@ -21,7 +21,7 @@ type User struct {
 
 type IUser interface {
 	GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error)
-	PreStore(pc *check.Paycheck) (bool, error)
+	Store(pc *check.Paycheck) (bool, error)
 }
 
 func New(sk string) (IUser, error) {
@@ -56,7 +56,7 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 }
 
 // tests before paycheck been stored
-func (user *User) PreStore(pc *check.Paycheck) (bool, error) {
+func (user *User) Store(pc *check.Paycheck) (bool, error) {
 	// check signed by check.operator
 	if ok, _ := pc.Check.Verify(); !ok {
 		return false, errors.New("check not signed by check.operator")
@@ -74,9 +74,12 @@ func (user *User) PreStore(pc *check.Paycheck) (bool, error) {
 	}
 
 	// paycheck should not exist in recorder
-	if ok, _ := user.Recorder.Exist(pc); ok {
+	if ok, _ := user.Recorder.IsValid(pc); ok {
 		return false, errors.New("paycheck already exist")
 	}
+
+	// ok to store
+	user.Recorder.Record(pc)
 
 	return true, nil
 }
