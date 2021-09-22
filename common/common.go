@@ -3,6 +3,7 @@ package common
 import (
 	"crypto/ecdsa"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -112,4 +113,14 @@ func GetNonce(contract common.Address, to common.Address) (uint64, error) {
 	}
 
 	return nonce, nil
+}
+
+func String2BigInt(str string) *big.Int {
+	v, _ := big.NewInt(0).SetString(str, 10)
+	return v
+}
+
+func String2Byte(str string) []byte {
+	v, _ := hex.DecodeString(str)
+	return v
 }

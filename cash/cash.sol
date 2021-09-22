@@ -26,7 +26,7 @@ struct Paycheck {
 
 contract Cash  {
     using SafeMath for uint256;
-
+    
     event Received(address, uint256);
     event Paid(address, uint256);
     
@@ -37,7 +37,6 @@ contract Cash  {
     // constructor
     constructor() payable {
         owner = msg.sender;
-        nodeNonce[owner]=123; // for test
     }
     
     // receiver
@@ -68,6 +67,7 @@ contract Cash  {
     		);
         bytes32 checkHash = keccak256(checkPack);
         address checkSigner = Recover.recover(checkHash,paycheck.check.checkSig);
+        
         require(paycheck.check.opAddr == checkSigner, "illegal check sig");
     	
         // verify paycheck's signer
@@ -85,7 +85,7 @@ contract Cash  {
         emit Paid(paycheck.check.toAddr, paycheck.payValue);
         
         // update nonce after paid
-        nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce + 1;
+        //nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce + 1;
 
         return true;
     }

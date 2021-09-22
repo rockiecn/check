@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
 	comn "github.com/rockiecn/check/common"
@@ -22,7 +23,7 @@ type Provider struct {
 }
 
 type IProvider interface {
-	WithDraw(pc *check.Paycheck) error
+	WithDraw(pc *check.Paycheck) (*types.Transaction, error)
 	Store(pc *check.Paycheck) (bool, error)
 }
 
@@ -38,23 +39,23 @@ func New(sk string) (IProvider, error) {
 }
 
 // CallApplyCheque - send tx to contract to call apply cheque method.
-func (pro *Provider) WithDraw(pc *check.Paycheck) error {
+func (pro *Provider) WithDraw(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
-	cli, err := comn.GetClient(pro.Host)
+	ethClient, err := comn.GetClient(pro.Host)
 	if err != nil {
-		return errors.New("failed to dial geth")
+		return nil, errors.New("failed to dial geth")
 	}
-	defer cli.Close()
+	defer ethClient.Close()
 
 	auth, err := comn.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
 	if err != nil {
-		return errors.New("make auth failed")
+		return nil, errors.New("make auth failed")
 	}
 
 	// get contract instance from address
-	cashInstance, err := cash.NewCash(pc.Check.ContractAddr, cli)
+	cashInstance, err := cash.NewCash(pc.Check.ContractAddr, ethClient)
 	if err != nil {
-		return errors.New("newcash failed")
+		return nil, errors.New("newcash failed")
 	}
 
 	// type convertion, from pc to cashpc for contract
@@ -72,14 +73,14 @@ func (pro *Provider) WithDraw(pc *check.Paycheck) error {
 		PayValue:    pc.PayValue,
 		PaycheckSig: pc.PaycheckSig,
 	}
-	_, err = cashInstance.Withdraw(auth, cashpc)
+	tx, err = cashInstance.Withdraw(auth, cashpc)
 	if err != nil {
-		return errors.New("tx failed")
+		return nil, errors.New("tx failed")
 	}
 
 	fmt.Println("-> Now mine a block to complete tx.")
 
-	return nil
+	return tx, nil
 }
 
 // tests before paycheck been stored

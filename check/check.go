@@ -72,9 +72,8 @@ func (chk *Check) Verify() (bool, error) {
 func (chk *Check) Serialize() []byte {
 
 	valuePad32 := common.LeftPadBytes(chk.Value.Bytes(), 32)
-	noncePad32 := common.LeftPadBytes(comn.Uint64ToBytes(chk.Nonce), 32)
-
 	tokenBytes := chk.TokenAddr.Bytes()
+	noncePad8 := common.LeftPadBytes(comn.Uint64ToBytes(chk.Nonce), 8)
 	fromBytes := chk.FromAddr.Bytes()
 	toBytes := chk.ToAddr.Bytes()
 	operatorBytes := chk.OpAddr.Bytes()
@@ -84,7 +83,7 @@ func (chk *Check) Serialize() []byte {
 	hash := crypto.Keccak256(
 		valuePad32,
 		tokenBytes,
-		noncePad32,
+		noncePad8,
 		fromBytes,
 		toBytes,
 		operatorBytes,
@@ -145,9 +144,8 @@ func (pchk *Paycheck) Verify() (bool, error) {
 func (pchk *Paycheck) Serialize() []byte {
 
 	valuePad32 := common.LeftPadBytes(pchk.Check.Value.Bytes(), 32)
-	noncePad32 := common.LeftPadBytes(comn.Uint64ToBytes(pchk.Check.Nonce), 32)
+	noncePad8 := common.LeftPadBytes(comn.Uint64ToBytes(pchk.Check.Nonce), 8)
 	payvaluePad32 := common.LeftPadBytes(pchk.PayValue.Bytes(), 32)
-
 	tokenBytes := pchk.Check.TokenAddr.Bytes()
 	fromBytes := pchk.Check.FromAddr.Bytes()
 	toBytes := pchk.Check.ToAddr.Bytes()
@@ -158,7 +156,7 @@ func (pchk *Paycheck) Serialize() []byte {
 	hash := crypto.Keccak256(
 		valuePad32,
 		tokenBytes,
-		noncePad32,
+		noncePad8,
 		fromBytes,
 		toBytes,
 		operatorBytes,

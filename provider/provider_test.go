@@ -1,148 +1,89 @@
 package provider
 
-// import (
-// 	"encoding/hex"
-// 	"fmt"
-// 	"math/big"
-// 	"testing"
+import (
+	"context"
+	"fmt"
+	"math/big"
+	"testing"
+	"time"
 
-// 	"github.com/rockiecn/check/check"
-// 	"github.com/rockiecn/check/operator"
-// 	"github.com/rockiecn/check/user"
-// )
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/rockiecn/check/check"
+	comn "github.com/rockiecn/check/common"
+)
 
-// func TestVerifyPayCheck(t *testing.T) {
+func TestWithdraw(t *testing.T) {
+	// use ethClient.BalanceAt() to get the old balance of provider
+	// call testWithdraw, mine a block to enable the tx
+	// check balance of provider again
+	// calc:
+	// 1. newBalance > oldBalance
+	// 2. old+paycheck.payvalue + gaslimit(9000000) > new
+	pro, err := New("cc6d63f85de8fef05446ebdd3c537c72152d0fc437fd7aa62b3019b79bd1fdd4")
+	if err != nil {
+		fmt.Println("new provider failed:", err)
+		return
+	}
 
-// 	type Input struct {
-// 		value       string
-// 		toekn       string
-// 		nonce       string
-// 		from        string
-// 		to          string
-// 		op          string
-// 		con         string
-// 		checksig    string
-// 		payvalue    string
-// 		payckecksig string
-// 	}
+	pc := &check.Paycheck{
+		Check: check.Check{
+			Value:        comn.String2BigInt("10000000000000000000"),
+			TokenAddr:    common.HexToAddress("0xb213d01542d129806d664248A380Db8B12059061"),
+			Nonce:        0,
+			FromAddr:     common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+			ToAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+			OpAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+			ContractAddr: common.HexToAddress("0xb31BA5cDC07A2EaFAF77c95294fd4aE27D04E9CA"),
+			CheckSig:     comn.String2Byte("456391994ed07bd03809b03a7afd9cdd4554c4a6c382289f7e4ea6c749afa7014937817cd32c0c8f983375dbae9959756e82f855538375d0bb99813a0770323500"),
+		},
+		PayValue:    comn.String2BigInt("1000000000000000000"),
+		PaycheckSig: comn.String2Byte("2a8488c7a44fefe771b9fcc1c0ab801f95611906f12e58c4fe2e2ac9406dc97c1601c2ae6f328c4a18df90c1c33170872cab29e1ef970644b163d117a9819ac100"),
+	}
 
-// 	var tests = []struct {
-// 		input Input
-// 		want  bool
-// 	}{
-// 		{
-// 			Input{
-// 				"100000000000000000000",
-// 				"b213d01542d129806d664248a380db8b12059061",
-// 				"5",
-// 				"Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
-// 				"4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
-// 				"5B38Da6a701c568545dCfcB03FcB875f56beddC4",
-// 				"cD6a42782d230D7c13A74ddec5dD140e55499Df9",
-// 				"688ebe9157c8a338cac3c5505440b9a0f84b7a87ca9e30188422d87b39dd2e2f452f7b953e4129b41b967e7818441e0346ff096b63b916e2aee45591797ab1e700",
-// 				"0",
-// 				"6f0fd75a9d7150f8189324373f659cc441f36768396407131a2c5ca5ed57b3ed02e474289050efc698531560c1b0914e52ca49b9c98e610a3de86c7e6e77c48100",
-// 			},
-// 			true,
-// 		},
-// 		{
-// 			Input{
-// 				"200000000000000000000",
-// 				"b213d01542d129806d664248a380db8b12059061",
-// 				"5",
-// 				"Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
-// 				"4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
-// 				"5B38Da6a701c568545dCfcB03FcB875f56beddC4",
-// 				"cD6a42782d230D7c13A74ddec5dD140e55499Df9",
-// 				"688ebe9157c8a338cac3c5505440b9a0f84b7a87ca9e30188422d87b39dd2e2f452f7b953e4129b41b967e7818441e0346ff096b63b916e2aee45591797ab1e700",
-// 				"0",
-// 				"6f0fd75a9d7150f8189324373f659cc441f36768396407131a2c5ca5ed57b3ed02e474289050efc698531560c1b0914e52ca49b9c98e610a3de86c7e6e77c48100",
-// 			},
-// 			false,
-// 		},
-// 	}
+	// view balance
+	ethClient, err := comn.GetClient(pro.(*Provider).Host)
+	if err != nil {
+		return
+	}
+	defer ethClient.Close()
 
-// 	pro, err := NewProvider("cc6d63f85de8fef05446ebdd3c537c72152d0fc437fd7aa62b3019b79bd1fdd4")
-// 	if err != nil {
-// 		fmt.Println("new provider failed:", err)
-// 	}
+	// get old balance of provider
+	bal, err := ethClient.BalanceAt(context.Background(), common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"), nil)
+	if err != nil {
+		fmt.Println("get balance failed")
+	}
+	fmt.Println("old balance of provider:", bal.String())
 
-// 	for _, test := range tests {
+	// call withdraw
+	tx, _ := pro.WithDraw(pc)
+	// deploy contract, wait for mining.
+	for {
+		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
+		// receipt ok
+		if txReceipt != nil {
+			break
+		}
+		fmt.Println("wait mining")
+		time.Sleep(time.Duration(3) * time.Second)
+	}
 
-// 		chk := new(check.Check)
-// 		bigValue := new(big.Int)
-// 		bigValue.SetString(test.input.value, 10)
-// 		chk.Value = bigValue
+	newbal, err := ethClient.BalanceAt(context.Background(), common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"), nil)
+	if err != nil {
+		fmt.Println("get balance failed")
+	}
+	fmt.Println("new balance of provider:", newbal.String())
 
-// 		chk.TokenAddr = test.input.toekn
+	// require: newBalance > oldBalance
+	if newbal.Cmp(bal) < 0 {
+		t.Errorf("new balance should larger than old balance")
+	}
 
-// 		bigNonce := new(big.Int)
-// 		bigNonce.SetString(test.input.nonce, 10)
-// 		chk.Nonce = bigNonce
-
-// 		chk.From = test.input.from
-// 		chk.To = test.input.to
-// 		chk.OperatorAddr = test.input.op
-// 		chk.ContractAddr = test.input.con
-// 		sigByte, _ := hex.DecodeString(test.input.checksig)
-// 		chk.CheckSig = sigByte
-
-// 		paycheck := new(check.PayCheck)
-// 		paycheck.Check = chk
-// 		bigPayValue := new(big.Int)
-// 		bigPayValue.SetString(test.input.payvalue, 10)
-// 		paycheck.PayValue = bigPayValue
-// 		sigByte, _ = hex.DecodeString(test.input.payckecksig)
-// 		paycheck.PayCheckSig = sigByte
-
-// 		got, err := pro.VerifyPayCheck(paycheck)
-// 		if err != nil {
-// 			fmt.Println("verify check failed:", err)
-// 			return
-// 		}
-// 		if got != test.want {
-// 			t.Errorf("verifycheck, want:%v got:%v", test.want, got)
-// 		}
-// 	}
-// }
-
-// func TestCallContract(t *testing.T) {
-
-// 	op, _ := operator.NewOperator(
-// 		"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
-// 		"b213d01542d129806d664248A380Db8B12059061")
-// 	pro, _ := NewProvider(
-// 		"cc6d63f85de8fef05446ebdd3c537c72152d0fc437fd7aa62b3019b79bd1fdd4")
-
-// 	// construct paycheck
-// 	bigValue, _ := new(big.Int).SetString("100000000000000000000", 10)
-// 	bigNonce, _ := new(big.Int).SetString("19", 10)
-
-// 	chk := &check.Check{
-// 		Value:        bigValue,
-// 		TokenAddr:    "b213d01542d129806d664248a380db8b12059061",
-// 		Nonce:        bigNonce,
-// 		From:         "Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2",
-// 		To:           "4B20993Bc481177ec7E8f571ceCaE8A9e22C02db",
-// 		OperatorAddr: "5B38Da6a701c568545dCfcB03FcB875f56beddC4",
-// 		ContractAddr: "0498B7c793D7432Cd9dB27fb02fc9cfdBAfA1Fd3",
-// 		CheckSig:     []byte{},
-// 	}
-
-// 	chkSig, _ := op.Sign(chk)
-// 	chk.CheckSig = chkSig
-
-// 	bigPayValue, _ := new(big.Int).SetString("1000000000000000000", 10)
-
-// 	pchk := &check.PayCheck{
-// 		Check:       chk,
-// 		PayValue:    bigPayValue,
-// 		PayCheckSig: []byte{},
-// 	}
-// 	user, _ := user.NewUser("7e5bfb82febc4c2c8529167104271ceec190eafdca277314912eaabdb67c6e5f")
-// 	pchkSig, _ := user.Sign(pchk)
-// 	pchk.PayCheckSig = pchkSig
-
-// 	// call contract with this paycheck
-// 	pro.CallContract(pchk)
-// }
+	plusGas := new(big.Int)
+	plusGas = plusGas.Add(bal, comn.String2BigInt("9000000"))
+	total := new(big.Int)
+	total = total.Add(plusGas, pc.PayValue)
+	// require: new < old+paycheck.payvalue + gaslimit(9000000)
+	if newbal.Cmp(total) > 0 {
+		t.Errorf("new balance should smaller than old balance + payvalue + gaslimit")
+	}
+}
