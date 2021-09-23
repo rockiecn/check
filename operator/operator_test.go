@@ -52,14 +52,6 @@ import (
 // }
 
 func TestAll(t *testing.T) {
-	// op := NewOperator()
-	// user := NewUser()
-	// pro:= NewProvider()
-	// chk := op.GenCheck()
-	// ok := chk.ValidCheck()
-	// pchk := user.GenPayCheck()
-	// ok := pchk.ValidPayCheck()
-	// provider.Withdraw()
 
 	// new operator
 	fmt.Println("create an operator")
@@ -112,7 +104,7 @@ func TestAll(t *testing.T) {
 
 	fmt.Println("user is storing paycheck..")
 	// record check into user's recorder
-	usr.(*user.User).Store(pchk)
+	usr.(*user.User).Store(chk)
 
 	fmt.Println("provider is storing paycheck..")
 	// record check into provider's recorder

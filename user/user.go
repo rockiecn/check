@@ -21,7 +21,7 @@ type User struct {
 
 type IUser interface {
 	GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error)
-	Store(pc *check.Paycheck) (bool, error)
+	Store(pc *check.Check) (bool, error)
 }
 
 func New(sk string) (IUser, error) {
@@ -55,31 +55,31 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 	return pchk, nil
 }
 
-// tests before paycheck been stored
-func (user *User) Store(pc *check.Paycheck) (bool, error) {
+// tests before check been stored
+func (user *User) Store(chk *check.Check) (bool, error) {
 	// check signed by check.operator
-	if ok, _ := pc.Check.Verify(); !ok {
+	if ok, _ := chk.Verify(); !ok {
 		return false, errors.New("check not signed by check.operator")
 	}
 
 	// from address = user address
-	if pc.Check.FromAddr != user.UserAddr {
+	if chk.FromAddr != user.UserAddr {
 		return false, errors.New("check's from address must be user")
 	}
 
 	// nonce >= contract.nonce
-	nonceContract, _ := comn.GetNonce(pc.Check.ContractAddr, pc.Check.ToAddr)
-	if pc.Check.Nonce < nonceContract {
+	nonceContract, _ := comn.GetNonce(chk.ContractAddr, chk.ToAddr)
+	if chk.Nonce < nonceContract {
 		return false, errors.New("check is obsoleted, cannot withdraw")
 	}
 
 	// paycheck should not exist in recorder
-	if ok, _ := user.Recorder.IsValid(pc); ok {
-		return false, errors.New("paycheck already exist")
+	if ok, _ := user.Recorder.IsValid(chk); ok {
+		return false, errors.New("check already exist")
 	}
 
 	// ok to store
-	user.Recorder.Record(pc)
+	user.Recorder.Record(chk)
 
 	return true, nil
 }

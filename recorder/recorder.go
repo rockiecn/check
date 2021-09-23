@@ -97,6 +97,6 @@ func (r *Recorder) IsValid(entry interface{}) (bool, error) {
 			return false, nil // invalid
 		}
 	default:
-		return false, errors.New("invalid type, type must be check/paycheck")
+		return false, errors.New("type must be check/paycheck")
 	}
 }

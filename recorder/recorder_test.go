@@ -1,20 +1,108 @@
 package recorder
 
 import (
-	"fmt"
+	"errors"
 	"math/big"
-	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/check"
+	comn "github.com/rockiecn/check/common"
 )
+
+func TestRecord(t *testing.T) {
+
+	// all cases
+	type oneCase struct {
+		data interface{}
+		want error
+	}
+
+	cases := []oneCase{
+		// *check.Check case
+		{
+			data: &check.Check{
+				Value:        comn.String2BigInt("10000000000000000000"),
+				TokenAddr:    common.HexToAddress("0xb213d01542d129806d664248A380Db8B12059061"),
+				Nonce:        0,
+				FromAddr:     common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+				ToAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+				OpAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+				ContractAddr: common.HexToAddress("0xb31BA5cDC07A2EaFAF77c95294fd4aE27D04E9CA"),
+				CheckSig:     comn.String2Byte("456391994ed07bd03809b03a7afd9cdd4554c4a6c382289f7e4ea6c749afa7014937817cd32c0c8f983375dbae9959756e82f855538375d0bb99813a0770323500"),
+			},
+			want: nil,
+		},
+		// *check.Paycheck case
+		{
+			data: &check.Paycheck{
+				Check: check.Check{
+					Value:        comn.String2BigInt("10000000000000000000"),
+					TokenAddr:    common.HexToAddress("0xb213d01542d129806d664248A380Db8B12059061"),
+					Nonce:        0,
+					FromAddr:     common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+					ToAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+					OpAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+					ContractAddr: common.HexToAddress("0xb31BA5cDC07A2EaFAF77c95294fd4aE27D04E9CA"),
+					CheckSig:     comn.String2Byte("456391994ed07bd03809b03a7afd9cdd4554c4a6c382289f7e4ea6c749afa7014937817cd32c0c8f983375dbae9959756e82f855538375d0bb99813a0770323500"),
+				},
+				PayValue:    comn.String2BigInt("1000000000000000000"),
+				PaycheckSig: comn.String2Byte("2a8488c7a44fefe771b9fcc1c0ab801f95611906f12e58c4fe2e2ac9406dc97c1601c2ae6f328c4a18df90c1c33170872cab29e1ef970644b163d117a9819ac100"),
+			},
+			want: nil,
+		},
+		// check.Paycheck case
+		{
+			data: check.Paycheck{
+				Check: check.Check{
+					Value:        comn.String2BigInt("10000000000000000000"),
+					TokenAddr:    common.HexToAddress("0xb213d01542d129806d664248A380Db8B12059061"),
+					Nonce:        0,
+					FromAddr:     common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+					ToAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+					OpAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+					ContractAddr: common.HexToAddress("0xb31BA5cDC07A2EaFAF77c95294fd4aE27D04E9CA"),
+					CheckSig:     comn.String2Byte("456391994ed07bd03809b03a7afd9cdd4554c4a6c382289f7e4ea6c749afa7014937817cd32c0c8f983375dbae9959756e82f855538375d0bb99813a0770323500"),
+				},
+				PayValue:    comn.String2BigInt("1000000000000000000"),
+				PaycheckSig: comn.String2Byte("2a8488c7a44fefe771b9fcc1c0ab801f95611906f12e58c4fe2e2ac9406dc97c1601c2ae6f328c4a18df90c1c33170872cab29e1ef970644b163d117a9819ac100"),
+			},
+			want: errors.New("type of value must be Check or Paycheck"),
+		},
+	}
+
+	rec := New()
+
+	// test all cases
+	for _, c := range cases {
+		got := rec.Record(c.data)
+		if got == nil && c.want == nil {
+			//t.Log("want err nil, got err nil, test OK")
+			continue
+		}
+
+		if got == nil && c.want != nil {
+			t.Errorf("want: %v, got: %v", c.want.Error(), nil)
+		}
+
+		if got != nil && c.want == nil {
+			t.Errorf("want: %v, got: %v", nil, got.Error())
+		}
+
+		if got != nil || c.want != nil {
+			if got.Error() != c.want.Error() {
+				t.Errorf("want: %v, got: %v", c.want.Error(), got.Error())
+			}
+		}
+	}
+}
 
 func TestIsValid(t *testing.T) {
 
 	type test struct {
 		input interface{}
-		want  bool
+		ret   bool
+		e     error
 	}
 
 	// check/payckeck
@@ -24,14 +112,16 @@ func TestIsValid(t *testing.T) {
 				Nonce:  1,
 				ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
 			},
-			want: false,
+			ret: false,
+			e:   nil,
 		},
 		{
 			input: &check.Check{
 				Nonce:  3,
 				ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
 			},
-			want: true,
+			ret: true,
+			e:   nil,
 		},
 		{
 			input: &check.Paycheck{
@@ -41,7 +131,8 @@ func TestIsValid(t *testing.T) {
 				},
 				PayValue: big.NewInt(10),
 			},
-			want: false,
+			ret: false,
+			e:   nil,
 		},
 		{
 			input: &check.Paycheck{
@@ -51,14 +142,24 @@ func TestIsValid(t *testing.T) {
 				},
 				PayValue: big.NewInt(30),
 			},
-			want: true,
+			ret: true,
+			e:   nil,
+		},
+		{
+			input: check.Paycheck{
+				Check: check.Check{
+					Nonce:  4,
+					ToAddr: common.HexToAddress("0x9e0153496067c20943724b79515472195a7aedaa"),
+				},
+				PayValue: big.NewInt(30),
+			},
+			ret: false,
+			e:   errors.New("type must be check/paycheck"),
 		},
 	}
 
-	type record interface{}
-
 	// data to be put into Entrys
-	records := []record{
+	records := []interface{}{
 
 		&check.Check{
 			Nonce:  1,
@@ -88,58 +189,32 @@ func TestIsValid(t *testing.T) {
 	// prepair for testing, put all testing data into Entrys
 	for _, r := range records {
 
-		refType := reflect.TypeOf((r))
-
-		switch refType.String() {
-		case "*check.Check":
-			// cast type to check.Check for calling Record()
-			v := r.(*check.Check)
-			err := rec.Record(v)
-			if err != nil {
-				fmt.Println(err)
-			}
-		case "*check.Paycheck":
-			// cast type to check.Paycheck for calling Record()
-			v := r.(*check.Paycheck)
-			err := rec.Record(v)
-			if err != nil {
-				fmt.Println(err)
-			}
+		err := rec.Record(r)
+		if err != nil {
+			t.Fatal("got error when Recording")
 		}
 	}
 
 	// begin test
 	for _, tst := range tests {
 
-		refType := reflect.TypeOf(tst.input)
+		gotRet, gotErr := rec.IsValid(tst.input)
 
-		switch refType.String() {
-		case "*check.Check":
-			// cast type to *check.Check, for calling Valid()
-			v := tst.input.(*check.Check)
-			// call valid with a check param
-			got, err := rec.IsValid(v)
-			if err != nil {
-				fmt.Println("call valid error:", err)
-				continue
+		if gotErr != nil {
+			if tst.e == nil {
+				t.Errorf("want error: nil, got error: %v", gotErr)
+			} else {
+				if tst.e.Error() != gotErr.Error() || tst.ret != gotRet {
+					t.Errorf("want: %v,%v, got: %v,%v", tst.ret, tst.e.Error(), gotRet, gotErr.Error())
+				}
 			}
-			if got != tst.want {
-				t.Errorf("test faild,got:%v, want:%v", got, tst.want)
+		} else {
+			if tst.e != nil {
+				t.Errorf("want err: %v, got err: nil", tst.e)
 			}
-		case "*check.Paycheck":
-			// cast type to *check.Paycheck, for calling Valid()
-			v := tst.input.(*check.Paycheck)
-			// call valid with a paycheck param
-			got, err := rec.IsValid(v)
-			if err != nil {
-				fmt.Println("call valid error:", err)
-				continue
+			if gotRet != tst.ret {
+				t.Errorf("want: %v, got: %v", tst.ret, gotRet)
 			}
-			if got != tst.want {
-				t.Errorf("test faild,got:%v, want:%v", got, tst.want)
-			}
-		default:
-			fmt.Println("test data error, data type not check or payckeck")
 		}
 	}
 }

@@ -118,7 +118,7 @@ func (pro *Provider) Store(pc *check.Paycheck) (bool, error) {
 	}
 
 	// valid?
-	if ok, _ := pro.Recorder.IsValid(pc); ok {
+	if ok, _ := pro.Recorder.IsValid(pc); !ok {
 		return false, errors.New("paycheck not valid")
 	}
 
