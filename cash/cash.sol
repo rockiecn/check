@@ -85,7 +85,7 @@ contract Cash  {
         emit Paid(paycheck.check.toAddr, paycheck.payValue);
         
         // update nonce after paid
-        //nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce + 1;
+        //nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce;
 
         return true;
     }

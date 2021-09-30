@@ -210,7 +210,7 @@ func TestIsValid(t *testing.T) {
 			}
 		} else {
 			if tst.e != nil {
-				t.Errorf("want err: %v, got err: nil", tst.e)
+				t.Errorf("want err: %v, got err: %v", tst.e, gotErr)
 			}
 			if gotRet != tst.ret {
 				t.Errorf("want: %v, got: %v", tst.ret, gotRet)

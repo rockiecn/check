@@ -12,7 +12,6 @@ import (
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
 	comn "github.com/rockiecn/check/common"
-	"github.com/rockiecn/check/recorder"
 )
 
 type Operator struct {
@@ -24,7 +23,7 @@ type Operator struct {
 	// each provider's nonce
 	Nonces map[common.Address]uint64
 
-	Recorder *recorder.Recorder
+	Recorder *Recorder
 }
 
 type IOperator interface {
@@ -39,7 +38,7 @@ func New(sk string, token string) (IOperator, *types.Transaction, error) {
 		OpSK:     sk,
 		OpAddr:   comn.KeyToAddr(sk),
 		Nonces:   make(map[common.Address]uint64),
-		Recorder: recorder.New(),
+		Recorder: NewRec(),
 	}
 
 	// give 20 eth to new contract
@@ -106,7 +105,7 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 	if !ok {
 		return nil, common.Address{}, errors.New("error casting public key to ECDSA")
 	}
-	// get address
+	// get operator address
 	opComAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
 	// get nonce
 	nonce, err := ethClient.PendingNonceAt(context.Background(), opComAddr)
@@ -146,4 +145,53 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 		}()
 	*/
 	return tx, contractAddr, nil
+}
+
+type Key struct {
+	Operator common.Address
+	Provider common.Address
+	Nonce    uint64
+}
+
+type Recorder struct {
+	Checks map[Key]*check.Check
+}
+
+// generate a recorder for operator
+func NewRec() *Recorder {
+
+	r := &Recorder{
+		Checks: make(map[Key]*check.Check),
+	}
+
+	return r
+}
+
+// put a check into Checks
+func (r *Recorder) Record(chk *check.Check) error {
+
+	key := Key{
+		Operator: chk.OpAddr,
+		Provider: chk.ToAddr,
+		Nonce:    chk.Nonce,
+	}
+	r.Checks[key] = chk
+	return nil
+}
+
+// if a check is valid to store
+func (r *Recorder) IsValid(chk *check.Check) (bool, error) {
+
+	k := Key{
+		Operator: chk.OpAddr,
+		Provider: chk.ToAddr,
+		Nonce:    chk.Nonce,
+	}
+	v := r.Checks[k]
+
+	if v == nil {
+		return true, nil // not exist, ok to store
+	} else {
+		return false, nil // already exist
+	}
 }

@@ -10,7 +10,6 @@ import (
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
 	comn "github.com/rockiecn/check/common"
-	"github.com/rockiecn/check/recorder"
 )
 
 type Provider struct {
@@ -19,7 +18,7 @@ type Provider struct {
 
 	Host string
 
-	Recorder *recorder.Recorder
+	Recorder *Recorder
 }
 
 type IProvider interface {
@@ -31,7 +30,7 @@ func New(sk string) (IProvider, error) {
 	pro := &Provider{
 		ProviderSK:   sk,
 		ProviderAddr: comn.KeyToAddr(sk),
-		Recorder:     recorder.New(),
+		Recorder:     NewRec(),
 		Host:         "http://localhost:8545",
 	}
 
@@ -126,4 +125,54 @@ func (pro *Provider) Store(pc *check.Paycheck) (bool, error) {
 	pro.Recorder.Record(pc)
 
 	return true, nil
+}
+
+type Key struct {
+	Operator common.Address
+	Provider common.Address
+	Nonce    uint64
+}
+
+type Recorder struct {
+	Paychecks map[Key]*check.Paycheck
+}
+
+// generate a recorder for operator
+func NewRec() *Recorder {
+
+	r := &Recorder{
+		Paychecks: make(map[Key]*check.Paycheck),
+	}
+
+	return r
+}
+
+// put a paycheck into Checks
+func (r *Recorder) Record(pchk *check.Paycheck) error {
+
+	key := Key{
+		Operator: pchk.Check.OpAddr,
+		Provider: pchk.Check.ToAddr,
+		Nonce:    pchk.Check.Nonce,
+	}
+
+	r.Paychecks[key] = pchk
+	return nil
+}
+
+// if a check is valid to store
+func (r *Recorder) IsValid(pchk *check.Paycheck) (bool, error) {
+
+	k := Key{
+		Operator: pchk.Check.OpAddr,
+		Provider: pchk.Check.ToAddr,
+		Nonce:    pchk.Check.Nonce,
+	}
+	v := r.Paychecks[k]
+
+	if v == nil {
+		return true, nil // not exist, ok to store
+	} else {
+		return false, nil // already exist
+	}
 }
