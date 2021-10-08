@@ -90,13 +90,22 @@ contract Cash  {
         return true;
     }
 
+    // deposit some money to contract
+    function deposit() public payable{
+    }
+  
+    // get balance of contract
+    function getBalance() public view returns(uint256) {
+        return address(this).balance;
+    }
+    
     // get nonce of a specified node
-    function get_nonce(address node) public view returns(uint64) {
+    function getNonce(address node) public view returns(uint64) {
         return nodeNonce[node];
     }
     
     // get owner of the contract
-    function get_owner() public view returns(address) {
+    function getOwner() public view returns(address) {
         return owner;
     }
 }

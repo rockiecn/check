@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -29,12 +30,12 @@ type IOperator interface {
 
 	//TODO:
 
-	// current balance of contract
+	// query current balance of contract
 	QueryBalance() (*big.Int, error)
 	// query contract nonce of a provider
 	QueryNonce(to common.Address) (uint64, error)
 	// give money to contract
-	Deposit(value *big.Int) error
+	Deposit(value *big.Int) (*types.Transaction, error)
 	// sell a check to a user based on an apply
 	Sell(a *Apply) (*Receipt, error)
 }
@@ -155,16 +156,83 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 	return tx, contractAddr, nil
 }
 
+// query balance of the contract
 func (op *Operator) QueryBalance() (*big.Int, error) {
-	return nil, nil
+	ethClient, err := comn.GetClient(comn.HOST)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	auth := new(bind.CallOpts)
+	auth.From = op.OpAddr
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	if err != nil {
+		return nil, errors.New("newcash failed")
+	}
+
+	bal, err := cashInstance.GetBalance(auth)
+	if err != nil {
+		return nil, errors.New("tx failed")
+	}
+
+	return bal, nil
 }
 
+// query nonce of a given provider
 func (op *Operator) QueryNonce(to common.Address) (uint64, error) {
-	return 0, nil
+	ethClient, err := comn.GetClient(comn.HOST)
+	if err != nil {
+		return 0, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	auth := new(bind.CallOpts)
+	auth.From = op.OpAddr
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	if err != nil {
+		return 0, errors.New("newcash failed")
+	}
+
+	nonce, err := cashInstance.GetNonce(auth, to)
+	if err != nil {
+		return 0, errors.New("tx failed")
+	}
+
+	return nonce, nil
 }
 
-func (op *Operator) Deposit(value *big.Int) error {
-	return nil
+// deposit some money into contract
+func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
+	ethClient, err := comn.GetClient(comn.HOST)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	auth, err := comn.MakeAuth(op.OpSK, nil, nil, big.NewInt(1000), 9000000)
+	if err != nil {
+		return nil, errors.New("make auth failed")
+	}
+	// money to deposit
+	auth.Value = value
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	if err != nil {
+		return nil, errors.New("newcash failed")
+	}
+
+	tx, err := cashInstance.Deposit(auth)
+	if err != nil {
+		return nil, errors.New("tx failed")
+	}
+
+	return tx, nil
 }
 
 // apply to buy a check
