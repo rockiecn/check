@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -15,30 +16,37 @@ import (
 )
 
 type Operator struct {
-	OpSK   string
-	OpAddr common.Address
-
+	OpSK         string
+	OpAddr       common.Address
 	ContractAddr common.Address
-
-	// each provider's nonce
+	// to -> nonce
 	Nonces map[common.Address]uint64
-
-	Recorder *Recorder
 }
 
 type IOperator interface {
 	GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error)
 	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
+
+	//TODO:
+
+	// current balance of contract
+	QueryBalance() (*big.Int, error)
+	// query contract nonce of a provider
+	QueryNonce(to common.Address) (uint64, error)
+	// give money to contract
+	Deposit(value *big.Int) error
+	// sell a check to a user based on an apply
+	Sell(a *Apply) (*Receipt, error)
 }
 
 // new operator, a contract is deployed.
 // tx's receipt should be checked to make sure contract deploying is completed.
 func New(sk string, token string) (IOperator, *types.Transaction, error) {
 	op := &Operator{
-		OpSK:     sk,
-		OpAddr:   comn.KeyToAddr(sk),
-		Nonces:   make(map[common.Address]uint64),
-		Recorder: NewRec(),
+		OpSK:   sk,
+		OpAddr: comn.KeyToAddr(sk),
+		Nonces: make(map[common.Address]uint64),
+		//Recorder: NewRec(),
 	}
 
 	// give 20 eth to new contract
@@ -72,10 +80,10 @@ func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.A
 	}
 
 	// store check
-	err = op.Recorder.Record(chk)
-	if err != nil {
-		return nil, err
-	}
+	// err = op.Recorder.Record(chk)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// update nonce
 	op.Nonces[to] = op.Nonces[to] + 1
@@ -147,51 +155,58 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 	return tx, contractAddr, nil
 }
 
-type Key struct {
-	Operator common.Address
-	Provider common.Address
-	Nonce    uint64
+func (op *Operator) QueryBalance() (*big.Int, error) {
+	return nil, nil
 }
 
-type Recorder struct {
-	Checks map[Key]*check.Check
+func (op *Operator) QueryNonce(to common.Address) (uint64, error) {
+	return 0, nil
 }
 
-// generate a recorder for operator
-func NewRec() *Recorder {
-
-	r := &Recorder{
-		Checks: make(map[Key]*check.Check),
-	}
-
-	return r
-}
-
-// put a check into Checks
-func (r *Recorder) Record(chk *check.Check) error {
-
-	key := Key{
-		Operator: chk.OpAddr,
-		Provider: chk.ToAddr,
-		Nonce:    chk.Nonce,
-	}
-	r.Checks[key] = chk
+func (op *Operator) Deposit(value *big.Int) error {
 	return nil
 }
 
-// if a check is valid to store
-func (r *Recorder) IsValid(chk *check.Check) (bool, error) {
+// apply to buy a check
+type Apply struct {
+	Value *big.Int       // 购买的支票金额
+	Token common.Address // 购买的货币类型
+	From  common.Address // 支票的支付方地址
+	To    common.Address // 支票的接收方地址
+	Date  time.Time      // 购买日期
+	Name  string         // 购买人姓名
+	Tel   string         // 购买人联系方式
+	Sig   string         // 运营商的签名
+}
 
-	k := Key{
-		Operator: chk.OpAddr,
-		Provider: chk.ToAddr,
-		Nonce:    chk.Nonce,
-	}
-	v := r.Checks[k]
+// receipt of a check
+type Receipt struct {
+	Dt    time.Time      // 购买日期
+	Value *big.Int       // 购买金额
+	Token common.Address // 货币类型
+	Op    common.Address // 运营商地址
+	From  common.Address // 付款方地址
+	To    common.Address // 收款方地址
+	Nonce uint64         // nonce
+	Sig   string         // 运营商的签名
+}
 
-	if v == nil {
-		return true, nil // not exist, ok to store
-	} else {
-		return false, nil // already exist
-	}
+// sell a check to user, based on the apply, return a receipt
+func (op *Operator) Sell(a *Apply) (*Receipt, error) {
+	return nil, nil
+}
+
+type CheckPool struct {
+	// to -> []check
+	Pool map[common.Address][]*check.Check
+}
+
+// called by operator when a check is generated.
+func (p *CheckPool) Store(c *check.Check) error {
+	return nil
+}
+
+// get a check by receipt, can be called by user with rpc
+func (p *CheckPool) Get(r *Receipt) (*check.Check, error) {
+	return nil, nil
 }

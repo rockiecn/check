@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/check"
@@ -12,24 +13,23 @@ import (
 type User struct {
 	UserSK   string
 	UserAddr common.Address
-
-	ChkRecorder  *ChkRecorder
-	PChkRecorder *PChkRecorder
-
-	Host string
+	Host     string
 }
 
 type IUser interface {
 	GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error)
-	VerifyCheck(pc *check.Check) (bool, error)
+
+	// TODO:
+	Verify(chk *check.Check) (uint64, error)
+	Pay(dataValue *big.Int) error
 }
 
 func New(sk string) (IUser, error) {
 	user := &User{
-		UserSK:       sk,
-		UserAddr:     comn.KeyToAddr(sk),
-		ChkRecorder:  NewChkRec(),
-		PChkRecorder: NewPChkRec(),
+		UserSK:   sk,
+		UserAddr: comn.KeyToAddr(sk),
+		//ChkRecorder:  NewChkRec(),
+		//PChkRecorder: NewPChkRec(),
 	}
 
 	return user, nil
@@ -48,132 +48,66 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 	}
 
 	// record pchk into data
-	err = user.PChkRecorder.Record(pchk)
-	if err != nil {
-		return nil, errors.New("record paycheck failed")
-	}
+	// err = user.PChkRecorder.Record(pchk)
+	// if err != nil {
+	// 	return nil, errors.New("record paycheck failed")
+	// }
 
 	return pchk, nil
 }
 
-// tests before check been stored
-func (user *User) VerifyCheck(chk *check.Check) (bool, error) {
-	// check signed by check.operator
-	if ok, _ := chk.Verify(); !ok {
-		return false, errors.New("check not signed by check.operator")
-	}
-
-	// from address = user address
-	if chk.FromAddr != user.UserAddr {
-		return false, errors.New("check's from address must be user")
-	}
-
-	// nonce > contract.nonce
-	ctrNonce, _ := comn.GetNonce(chk.ContractAddr, chk.ToAddr)
-	if chk.Nonce <= ctrNonce {
-		return false, errors.New("check is obsoleted, cannot withdraw")
-	}
-
-	// check should not exist in recorder
-	if ok, _ := user.ChkRecorder.ChkExist(chk); ok {
-		return false, errors.New("check already exist")
-	}
-
-	// ok to store
-	//user.ChkRecorder.Record(chk)
-
-	return true, nil
+// verify received check
+func (user *User) Verify(chk *check.Check) (uint64, error) {
+	return 0, nil
 }
 
-type Key struct {
-	Operator common.Address
-	Provider common.Address
-	Nonce    uint64
-}
-
-type ChkRecorder struct {
-	Checks map[Key]*check.Check
-}
-
-// generate a recorder for operator
-func NewChkRec() *ChkRecorder {
-
-	r := &ChkRecorder{
-		Checks: make(map[Key]*check.Check),
-	}
-
-	return r
-}
-
-// put a check into Checks
-func (r *ChkRecorder) Record(chk *check.Check) error {
-
-	key := Key{
-		Operator: chk.OpAddr,
-		Provider: chk.ToAddr,
-		Nonce:    chk.Nonce,
-	}
-	r.Checks[key] = chk
+func (user *User) Pay(dataValue *big.Int) error {
 	return nil
 }
 
-// if a check is valid to store
-func (r *ChkRecorder) ChkExist(chk *check.Check) (bool, error) {
-
-	k := Key{
-		Operator: chk.OpAddr,
-		Provider: chk.ToAddr,
-		Nonce:    chk.Nonce,
-	}
-	v := r.Checks[k]
-
-	if v == nil {
-		return true, nil // not exist, ok to store
-	} else {
-		return false, nil // already exist
-	}
+type CheckPool struct {
+	// to -> []check
+	Pool map[common.Address][]*check.Check //有序数组
 }
 
-type PChkRecorder struct {
-	Paychecks map[Key]*check.Paycheck
-}
-
-// generate a recorder for operator
-func NewPChkRec() *PChkRecorder {
-
-	r := &PChkRecorder{
-		Paychecks: make(map[Key]*check.Paycheck),
-	}
-
-	return r
-}
-
-// put a paycheck into Checks
-func (r *PChkRecorder) Record(pchk *check.Paycheck) error {
-
-	key := Key{
-		Operator: pchk.Check.OpAddr,
-		Provider: pchk.Check.ToAddr,
-		Nonce:    pchk.Check.Nonce,
-	}
-
-	r.Paychecks[key] = pchk
+func (p *CheckPool) Store(c *check.Check) error {
 	return nil
 }
 
-// if a check is valid to store
-func (r *PChkRecorder) IsValid(pchk *check.Paycheck) (bool, error) {
+func (p *CheckPool) GetVirgin(to common.Address) (*check.Check, error) {
+	return nil, nil
+}
 
-	k := Key{
-		Operator: pchk.Check.OpAddr,
-		Provider: pchk.Check.ToAddr,
-		Nonce:    pchk.Check.Nonce,
-	}
-	v := r.Paychecks[k]
+type PaycheckPool struct {
+	// to -> []paycheck
+	Pool map[common.Address][]*check.Paycheck //按照nonce和payvalue有序
+}
 
-	if v == nil {
-		return true, nil // not exist, ok to store
-	} else {
-		return false, nil // already exist
-	}
+func (p *PaycheckPool) Store(pc *check.Paycheck) error {
+	return nil
+}
+
+func (p *PaycheckPool) GetLast(to common.Address) (*check.Paycheck, error) {
+	return nil, nil
+}
+
+type Receipt struct {
+	Dt    time.Time      // 购买日期
+	Value *big.Int       // 购买金额
+	Token common.Address // 货币类型
+	Op    common.Address // 运营商地址
+	From  common.Address // 付款方地址
+	To    common.Address // 收款方地址
+	Nonce uint64         // nonce
+	Sig   string         // 运营商的签名
+}
+
+type ReceiptPool struct {
+	Pool []*Receipt
+}
+
+// 存储一张收据到收据池
+func (p *ReceiptPool) Store(r *Receipt) error {
+	p.Pool = append(p.Pool, r)
+	return nil
 }

@@ -1,18 +1,5 @@
 package operator
 
-import (
-	"context"
-	"fmt"
-	"math/big"
-	"testing"
-	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-	comn "github.com/rockiecn/check/common"
-	"github.com/rockiecn/check/provider"
-	"github.com/rockiecn/check/user"
-)
-
 // test op.gencheck, then usr.genpaycheck
 // func TestGenCheck(t *testing.T) {
 
@@ -51,6 +38,7 @@ import (
 
 // }
 
+/*
 func TestAll(t *testing.T) {
 
 	// new operator
@@ -181,3 +169,4 @@ func TestAll(t *testing.T) {
 		t.Errorf("new balance should smaller than old balance + payvalue + gaslimit")
 	}
 }
+*/

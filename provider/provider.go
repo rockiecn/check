@@ -17,21 +17,24 @@ type Provider struct {
 	ProviderAddr common.Address
 
 	Host string
-
-	Recorder *Recorder
 }
 
 type IProvider interface {
 	WithDraw(pc *check.Paycheck) (*types.Transaction, error)
 	Store(pc *check.Paycheck) (bool, error)
+
+	// TODO:
+	Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, error)
+	CalcPay(pchk *check.Paycheck) (*big.Int, error)
+	Withdraw() (retCode uint64, e error)
 }
 
 func New(sk string) (IProvider, error) {
 	pro := &Provider{
 		ProviderSK:   sk,
 		ProviderAddr: comn.KeyToAddr(sk),
-		Recorder:     NewRec(),
-		Host:         "http://localhost:8545",
+		//Recorder:     NewRec(),
+		Host: "http://localhost:8545",
 	}
 
 	return pro, nil
@@ -117,62 +120,38 @@ func (pro *Provider) Store(pc *check.Paycheck) (bool, error) {
 	}
 
 	// valid?
-	if ok, _ := pro.Recorder.IsValid(pc); !ok {
-		return false, errors.New("paycheck not valid")
-	}
+	// if ok, _ := pro.Recorder.IsValid(pc); !ok {
+	// 	return false, errors.New("paycheck not valid")
+	// }
 
 	// ok to store
-	pro.Recorder.Record(pc)
+	//pro.Recorder.Record(pc)
 
 	return true, nil
 }
 
-type Key struct {
-	Operator common.Address
-	Provider common.Address
-	Nonce    uint64
+func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, error) {
+	return 0, nil
 }
 
-type Recorder struct {
-	Paychecks map[Key]*check.Paycheck
+func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
+	return nil, nil
 }
 
-// generate a recorder for operator
-func NewRec() *Recorder {
-
-	r := &Recorder{
-		Paychecks: make(map[Key]*check.Paycheck),
-	}
-
-	return r
+func (pro *Provider) Withdraw() (retCode uint64, e error) {
+	return 0, nil
 }
 
-// put a paycheck into Checks
-func (r *Recorder) Record(pchk *check.Paycheck) error {
+type PaycheckPool struct {
+	Pool []*check.Paycheck //按照nonce和payvalue有序
+}
 
-	key := Key{
-		Operator: pchk.Check.OpAddr,
-		Provider: pchk.Check.ToAddr,
-		Nonce:    pchk.Check.Nonce,
-	}
-
-	r.Paychecks[key] = pchk
+// 存储一张paycheck到池中
+func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 	return nil
 }
 
-// if a check is valid to store
-func (r *Recorder) IsValid(pchk *check.Paycheck) (bool, error) {
-
-	k := Key{
-		Operator: pchk.Check.OpAddr,
-		Provider: pchk.Check.ToAddr,
-		Nonce:    pchk.Check.Nonce,
-	}
-	v := r.Paychecks[k]
-
-	if v == nil {
-		return true, nil // not exist, ok to store
-	} else {
-		return false, nil // already exist
-	}
+// 找出用于下一次提现的paycheck，如果找到了则返回它，如果没找到则返回空
+func (p *PaycheckPool) GetNextPayable() (*check.Paycheck, error) {
+	return nil, nil
 }
