@@ -124,3 +124,27 @@ func String2Byte(str string) []byte {
 	v, _ := hex.DecodeString(str)
 	return v
 }
+
+func QueryNonce(sender common.Address, contract common.Address, to common.Address) (uint64, error) {
+	ethClient, err := GetClient(HOST)
+	if err != nil {
+		return 0, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	auth := new(bind.CallOpts)
+	auth.From = sender
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(contract, ethClient)
+	if err != nil {
+		return 0, errors.New("newcash failed")
+	}
+
+	nonce, err := cashInstance.GetNonce(auth, to)
+	if err != nil {
+		return 0, errors.New("tx failed")
+	}
+
+	return nonce, nil
+}

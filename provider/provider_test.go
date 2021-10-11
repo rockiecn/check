@@ -12,7 +12,7 @@ import (
 	comn "github.com/rockiecn/check/common"
 )
 
-func TestWithdraw(t *testing.T) {
+func TestSendTx(t *testing.T) {
 	// use ethClient.BalanceAt() to get the old balance of provider
 	// call testWithdraw, mine a block to enable the tx
 	// check balance of provider again
@@ -55,7 +55,7 @@ func TestWithdraw(t *testing.T) {
 	fmt.Println("old balance of provider:", bal.String())
 
 	// call withdraw
-	tx, _ := pro.WithDraw(pc)
+	tx, _ := pro.SendTx(pc)
 	// deploy contract, wait for mining.
 	for {
 		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())

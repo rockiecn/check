@@ -17,16 +17,22 @@ type Provider struct {
 	ProviderAddr common.Address
 
 	Host string
+
+	TxNonce uint64
+
+	Pool PaycheckPool
 }
 
 type IProvider interface {
-	WithDraw(pc *check.Paycheck) (*types.Transaction, error)
+	//WithDraw(pc *check.Paycheck) (*types.Transaction, error)
 	Store(pc *check.Paycheck) (bool, error)
 
-	// TODO:
+	// send withdraw transaction to contract
+	SendTx(pc *check.Paycheck) (tx *types.Transaction, err error)
+
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, error)
 	CalcPay(pchk *check.Paycheck) (*big.Int, error)
-	Withdraw() (retCode uint64, e error)
+	WithDraw() (retCode uint64, e error)
 }
 
 func New(sk string) (IProvider, error) {
@@ -40,8 +46,27 @@ func New(sk string) (IProvider, error) {
 	return pro, nil
 }
 
+// 找出用于下一次提现的paycheck，如果找到了则返回它，如果没找到则返回空
+func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
+	contractNonce, err := comn.GetNonce(pro.ProviderAddr, pro.ProviderAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	paychecks := pro.Pool.Data
+
+	for k, v := range paychecks {
+		if v.Check.Nonce > contractNonce {
+			return paychecks[k], nil
+		}
+	}
+
+	// no available nonce exist in pool
+	return nil, errors.New("no paycheck in pool can withdraw")
+}
+
 // CallApplyCheque - send tx to contract to call apply cheque method.
-func (pro *Provider) WithDraw(pc *check.Paycheck) (tx *types.Transaction, err error) {
+func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
 	ethClient, err := comn.GetClient(pro.Host)
 	if err != nil {
@@ -131,19 +156,62 @@ func (pro *Provider) Store(pc *check.Paycheck) (bool, error) {
 }
 
 func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, error) {
+
+	// value should no less than payvalue
+	if pchk.Check.Value.Cmp(pchk.PayValue) < 0 {
+		return 1, errors.New("value less than payvalue")
+	}
+
+	// check nonce shuould larger than contract nonce
+	contractNonce, err := comn.QueryNonce(pro.ProviderAddr, pchk.Check.ContractAddr, pro.ProviderAddr)
+	if err != nil {
+		return 2, errors.New("query contract nonce failed")
+	}
+	if pchk.Check.Nonce <= contractNonce {
+		return 2, errors.New("check nonce too small, cannot withdraw")
+	}
+
+	// to address must be provider
+	if pchk.Check.ToAddr != pro.ProviderAddr {
+		return 4, errors.New("check's to address not provider")
+	}
+
+	// check nonce should larger than TxNonce(last withdrawed nonce)
+	if pchk.Check.Nonce <= pro.TxNonce {
+		return 5, errors.New("check nonce not larger than TxNonce")
+	}
+
+	//
+	pay, err := pro.CalcPay(pchk)
+	if err != nil {
+		return 6, errors.New("call CalcPay failed")
+	}
+	if pay != dataValue {
+		return 6, errors.New("pay amount not equal dataValue")
+	}
+
+	// store paycheck into pool
+	pro.Pool.Store(pchk)
+
 	return 0, nil
 }
 
+// calculate the actual money the paycheck pays
 func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
-	return nil, nil
+	cur, _ := pro.Pool.GetCurrent()
+	if cur == nil {
+		return cur.PayValue, nil
+	} else {
+		return pchk.PayValue.Sub(pchk.PayValue, cur.PayValue), nil
+	}
 }
 
-func (pro *Provider) Withdraw() (retCode uint64, e error) {
+func (pro *Provider) WithDraw() (retCode uint64, e error) {
 	return 0, nil
 }
 
 type PaycheckPool struct {
-	Pool []*check.Paycheck //按照nonce和payvalue有序
+	Data []*check.Paycheck //按照nonce和payvalue有序
 }
 
 // 存储一张paycheck到池中
@@ -151,7 +219,12 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 	return nil
 }
 
-// 找出用于下一次提现的paycheck，如果找到了则返回它，如果没找到则返回空
-func (p *PaycheckPool) GetNextPayable() (*check.Paycheck, error) {
-	return nil, nil
+// get the currently using paycheck
+func (p *PaycheckPool) GetCurrent() (*check.Paycheck, error) {
+	if len(p.Data) == 0 {
+		return nil, errors.New("paycheck pool is nil")
+	}
+
+	// return the last one with biggest nonce
+	return p.Data[len(p.Data)-1], nil
 }

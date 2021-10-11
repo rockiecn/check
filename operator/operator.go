@@ -22,13 +22,13 @@ type Operator struct {
 	ContractAddr common.Address
 	// to -> nonce
 	Nonces map[common.Address]uint64
+
+	Pool CheckPool
 }
 
 type IOperator interface {
-	GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error)
+	GenCheck(a *Apply) (*check.Check, error)
 	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
-
-	//TODO:
 
 	// query current balance of contract
 	QueryBalance() (*big.Int, error)
@@ -41,7 +41,6 @@ type IOperator interface {
 }
 
 // new operator, a contract is deployed.
-// tx's receipt should be checked to make sure contract deploying is completed.
 func New(sk string, token string) (IOperator, *types.Transaction, error) {
 	op := &Operator{
 		OpSK:   sk,
@@ -60,16 +59,14 @@ func New(sk string, token string) (IOperator, *types.Transaction, error) {
 	return op, tx, nil
 }
 
-// generate a check
-func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.Address, to common.Address) (*check.Check, error) {
-
-	// construct check
+// generate a check with apply
+func (op *Operator) GenCheck(a *Apply) (*check.Check, error) {
 	chk := &check.Check{
-		Value:        value,
-		TokenAddr:    token,
-		FromAddr:     from,
-		ToAddr:       to,
-		Nonce:        op.Nonces[to],
+		Value:        a.Value,
+		TokenAddr:    a.Token,
+		FromAddr:     a.From,
+		ToAddr:       a.To,
+		Nonce:        op.Nonces[a.To] + 1,
 		OpAddr:       op.OpAddr,
 		ContractAddr: op.ContractAddr,
 	}
@@ -80,14 +77,8 @@ func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.A
 		return nil, err
 	}
 
-	// store check
-	// err = op.Recorder.Record(chk)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// update nonce
-	op.Nonces[to] = op.Nonces[to] + 1
+	// update nonce to latest nonce
+	op.Nonces[a.To] = chk.Nonce
 
 	return chk, nil
 }
@@ -95,6 +86,7 @@ func (op *Operator) GenCheck(value *big.Int, token common.Address, from common.A
 // value: money to new contract
 func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contractAddr common.Address, err error) {
 
+	// connect to node
 	ethClient, err := comn.GetClient(comn.HOST)
 	if err != nil {
 		return nil, common.Address{}, err
@@ -183,27 +175,8 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 
 // query nonce of a given provider
 func (op *Operator) QueryNonce(to common.Address) (uint64, error) {
-	ethClient, err := comn.GetClient(comn.HOST)
-	if err != nil {
-		return 0, errors.New("failed to dial geth")
-	}
-	defer ethClient.Close()
-
-	auth := new(bind.CallOpts)
-	auth.From = op.OpAddr
-
-	// get contract instance from address
-	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
-	if err != nil {
-		return 0, errors.New("newcash failed")
-	}
-
-	nonce, err := cashInstance.GetNonce(auth, to)
-	if err != nil {
-		return 0, errors.New("tx failed")
-	}
-
-	return nonce, nil
+	nonce, err := comn.QueryNonce(op.OpAddr, op.ContractAddr, to)
+	return nonce, err
 }
 
 // deposit some money into contract
@@ -227,6 +200,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 		return nil, errors.New("newcash failed")
 	}
 
+	// call contract
 	tx, err := cashInstance.Deposit(auth)
 	if err != nil {
 		return nil, errors.New("tx failed")
@@ -266,15 +240,33 @@ func (op *Operator) Sell(a *Apply) (*Receipt, error) {
 
 type CheckPool struct {
 	// to -> []check
-	Pool map[common.Address][]*check.Check
+	Data map[common.Address][]*check.Check
 }
 
-// called by operator when a check is generated.
+// called when a new check is generated.
 func (p *CheckPool) Store(c *check.Check) error {
+	s := p.Data[c.ToAddr]
+
+	// new nonce must be max
+	if len(s) > 0 && c.Nonce <= s[len(s)-1].Nonce {
+		return errors.New("nonce not max")
+	}
+
+	// ok to append
+	p.Data[c.ToAddr] = append(p.Data[c.ToAddr], c)
+
 	return nil
 }
 
 // get a check by receipt, can be called by user with rpc
 func (p *CheckPool) Get(r *Receipt) (*check.Check, error) {
-	return nil, nil
+	s := p.Data[r.To]
+
+	for _, v := range s {
+		if r.Nonce == v.Nonce {
+			return v, nil
+		}
+	}
+
+	return nil, errors.New("check not found")
 }
