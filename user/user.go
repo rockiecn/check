@@ -179,12 +179,46 @@ type PaycheckPool struct {
 	Data map[common.Address][]*check.Paycheck //按照nonce和payvalue有序
 }
 
+//
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
-	return nil
+
+	paychecks := p.Data[pc.Check.ToAddr]
+
+	// slice is nil, just append it
+	if len(paychecks) == 0 {
+		p.Data[pc.Check.ToAddr] = append(paychecks, pc)
+		return nil
+	}
+
+	// substitude last one with new paycheck
+	last := paychecks[len(paychecks)-1]
+	if pc.Check.Nonce == last.Check.Nonce {
+		*last = *pc
+		return nil
+	}
+
+	// append new paycheck into the slice
+	if pc.Check.Nonce > last.Check.Nonce {
+		p.Data[pc.Check.ToAddr] = append(paychecks, pc)
+		return nil
+	}
+
+	// new paycheck's nonce too small
+	if pc.Check.Nonce < last.Check.Nonce {
+		return errors.New("new paycheck's nonce is too small, cannot withdraw")
+	}
+
+	return errors.New("exception occurd, should not see this")
 }
 
+// get the last paycheck, which has the biggest nonce
 func (p *PaycheckPool) GetCurrent(to common.Address) (*check.Paycheck, error) {
-	return nil, nil
+	paychecks := p.Data[to]
+	if len(paychecks) == 0 {
+		return nil, nil
+	} else {
+		return paychecks[len(paychecks)-1], nil
+	}
 }
 
 type Receipt struct {
