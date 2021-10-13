@@ -155,6 +155,26 @@ func (pro *Provider) Store(pc *check.Paycheck) (bool, error) {
 	return true, nil
 }
 
+// calculate the actual money the paycheck pays
+func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
+	cur, _ := pro.Pool.GetCurrent()
+	if cur == nil {
+		return cur.PayValue, nil
+	} else {
+		return pchk.PayValue.Sub(pchk.PayValue, cur.PayValue), nil
+	}
+}
+
+// get the currently using paycheck
+func (p *PaycheckPool) GetCurrent() (*check.Paycheck, error) {
+	if len(p.Data) == 0 {
+		return nil, errors.New("paycheck pool is nil")
+	}
+
+	// return the last one with biggest nonce
+	return p.Data[len(p.Data)-1], nil
+}
+
 func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, error) {
 
 	// value should no less than payvalue
@@ -196,16 +216,6 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, e
 	return 0, nil
 }
 
-// calculate the actual money the paycheck pays
-func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
-	cur, _ := pro.Pool.GetCurrent()
-	if cur == nil {
-		return cur.PayValue, nil
-	} else {
-		return pchk.PayValue.Sub(pchk.PayValue, cur.PayValue), nil
-	}
-}
-
 func (pro *Provider) WithDraw() (retCode uint64, e error) {
 	return 0, nil
 }
@@ -217,14 +227,4 @@ type PaycheckPool struct {
 // 存储一张paycheck到池中
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 	return nil
-}
-
-// get the currently using paycheck
-func (p *PaycheckPool) GetCurrent() (*check.Paycheck, error) {
-	if len(p.Data) == 0 {
-		return nil, errors.New("paycheck pool is nil")
-	}
-
-	// return the last one with biggest nonce
-	return p.Data[len(p.Data)-1], nil
 }
