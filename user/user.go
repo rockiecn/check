@@ -96,51 +96,33 @@ func (user *User) Verify(chk *check.Check) (uint64, error) {
 
 // get a new check for pay, the first check next to current nonce
 func (user *User) GetVirgin(to common.Address) (*check.Check, error) {
-	// current paycheck
-	cur, err := user.PoolB.GetCurrent(to)
-	if err != nil {
-		return nil, err
-	}
 
-	// checks
 	checks := user.PoolA.Data[to]
-	// no check exist in check pool
+	// no check left
 	if len(checks) == 0 {
 		return nil, errors.New("check pool is nil")
 	}
 
-	// no paycheck exist, means no check is in use, return fist check to pay
+	cur, err := user.PoolB.GetCurrent(to)
+	// get current paycheck failed
+	if err != nil {
+		return nil, err
+	}
+
+	// no current paycheck exist, means no check is in use, return fist check to pay
 	if cur == nil {
 		return checks[0], nil
 	}
 
-	lastChk := checks[len(checks)-1]
-
-	// the last check is used in current paycheck
-	if lastChk.Nonce == cur.Check.Nonce {
-		return nil, errors.New("no usable check already, need to buy more")
-	}
-
-	// the check in use is not exist
-	if lastChk.Nonce < cur.Check.Nonce {
-		return nil, errors.New("currently used check is not exist in check pool")
-	}
-
-	// lastcheck > current
-	// find the used check first, then return the one next to it
+	// find virgin
 	for k, v := range checks {
-		if v.Nonce == cur.Check.Nonce {
-			if checks[k+1] == nil {
-				return nil, errors.New("last check > current, but no check available found")
-			} else {
-				// get virgin check
-				return checks[k+1], nil
-			}
+		if v.Nonce > cur.Check.Nonce {
+			return checks[k], nil
 		}
 	}
 
-	// using nonce is not exist in check pool?
-	return nil, errors.New("the using check nonce is not found in check pool")
+	// not found
+	return nil, errors.New("virgin check is not found")
 }
 
 // price = size * factor
