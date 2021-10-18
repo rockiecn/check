@@ -1,43 +1,10 @@
-## 一、Operator功能
+## 一、Order
 
-### 1.1 合约维护相关操作
-
-1.部署合约
-
-DeployContract(value \*big.Int) (\*tx types.Transaction, ctrAddr common.Address, err error) {
-
-部署银行合约。
-
-}
-
-2.合约余额查询
-
-QueryBalance() (\*big.Int, error) {
-
-查询合约当前余额。
-
-}
-
-3.节点nonce查询
-
-QueryNonce(to common.Address) (uint64, error) {
-
-查询指定provider的nonce。
-
-}
-
-4.向银行合约充钱
-
-Deposit(value \*big.Int) error {
-
-向合约转账。
-
-}
-
-### 1.2 订单的存储，获取，修改等管理操作
-// 订单结构：
+### 1.1 Order
 
 type Order struct {
+
+ID uint64 									// 订单ID
 
 Value \*big.Int							// 货币数量
 
@@ -65,38 +32,88 @@ Sig string									// 运营商的签名
 
 }
 
-// 订单池
+### 1.2 OrderPool
 
 type OrderPool struct {
 
-// to -> []check
+// user -> \[\]*Order
 
-Data map[common.Address]\[\]*check.Check
+Data map[common.Address]\[\]*Order
 
 }
+
+
 
 // 存储订单
 
 func (pool *OrderPool) Store(o *Order) error {
 
-将一张订单存储到订单池，以to地址和nonce来确定存放位置
+将一张订单存储到每个user各自的组下面，以订单ID为排列顺序。
 
 }
 
 // 获取订单
 
-func (pool *OrderPool) Get(to common.Address, nonce uint64) (\* Order, error) {
+func (pool *OrderPool) Get(user common.Address, ID uint64) (\* Order, error) {
 
-根据to地址和nonce来从订单池获取一张订单
+根据user地址和订单ID来从订单池获取一张订单
+
+}
+
+// 修改订单支付状态
+
+func (pool *OrderPool) Pay(user common.Address, ID uint64) (\* Order, error) {
+
+在用户支付完成后，使用订单的user和ID信息来调用，以修改此订单的支付状态paid为true。
+
+}
+
+...
+
+订单池一般情况都是在前台由用户的操作来发出相关操作请求，所以会带上各种必须的参数。
+
+
+
+## 二、Operator
+
+### 2.1 Contract
+
+1.部署合约
+
+func (op *Operator) DeployContract(value \*big.Int) (\*tx types.Transaction, ctrAddr common.Address, err error) {
+
+部署银行合约。
+
+}
+
+2.合约余额查询
+
+func (op *Operator) QueryBalance() (\*big.Int, error) {
+
+查询合约当前余额。
+
+}
+
+3.节点nonce查询
+
+func (op *Operator) QueryNonce(to common.Address) (uint64, error) {
+
+查询指定provider的当前nonce。
+
+}
+
+4.向银行合约充钱
+
+func (op *Operator) Deposit(value \*big.Int) error {
+
+向合约转账。
 
 }
 
 
+### 2.2 GenCheck
 
-
-### 1.3 GenCheck（根据订单生成支票）
-
-// 使用user提交的订单来生成一张check
+// 用户订单支付完成后，使用user提交的订单来生成一张check
 
 func (op *Operator) GenCheck(o \*Order) (\*check.Check, error) {
 
@@ -104,23 +121,17 @@ func (op *Operator) GenCheck(o \*Order) (\*check.Check, error) {
 
 支票还需加入operator自身地址等相关信息。
 
-最后调用store方法将生成的支票存储到本地支票池。
+}
+
+### 2.3 SendCheck
+
+func (op *Operator) SendCheck(o *Order) error {
+
+先通过订单参数在支票池中找到支票，然后通过订单中的邮箱地址，将支票发送给user
 
 }
 
-### 1.4 发送支票给user
-
-// 
-
-func (op *Operator) SendCheck(c \*check.Check) error {
-
-通过用户提交的订单中的邮箱地址，将支票发送给user
-
-}
-
-参数check通过GetCheck方法来获取
-
-### 1.5 Check池
+### 2.4 CheckPool
 
 type CheckPool struct {
 
@@ -138,15 +149,15 @@ func (p *CheckPool) Store(c *check.Check) error {
 
 }
 
-// 获取支票
+// 根据订单获取支票
 
-func (p *CheckPool) GetCheck(to common.Address, nonce uint64) (\*check.Check, error) {
+func (p *CheckPool) GetCheck(o *Order) (\*check.Check, error) {
 
-根据to地址和nonce值来从支票池中获取一张支票。
+根据订单信息来从支票池中获取对应支票。
 
 }
 
-### check或者paycheck的退钱机制
+### 2.5 Refund
 
 当user的一张check或者paycheck需要退钱的时候，如何实现？
 
@@ -226,9 +237,17 @@ Func (p *CheckPool) ExceptionRefund(c *check.Check, user common.Address) error {
 
 }
 
-## 二、**User功能**
+### Questions
 
-### **2.1 购买流程**
+订单系统如何跟运营商沟通？
+
+用户下了订单以后，如何通过订单系统调用operator的方法来存储支票？
+
+以及支票付款以后如何调用operator的生成支票的GenCheck方法？
+
+## 三、**User**
+
+### **3.1 购买流程**
 
 用户先向运营商提交订单Order，运营商审核通过后，等待user付款。
 
@@ -242,9 +261,9 @@ Func (p *CheckPool) ExceptionRefund(c *check.Check, user common.Address) error {
 
 如果根据数据大小来定支票金额，那么如何付款？
 
-### 2.2 ReadCheck
+### 3.2 ReadCheck
 
-// 购买成功后会收到一个支票文件
+// 购买成功后会收到一个支票文件，通过支票文件读取支票
 
 func (user \*User) ReadCheck(file \*File) (\*check.Check, error) {
 
@@ -252,7 +271,7 @@ func (user \*User) ReadCheck(file \*File) (\*check.Check, error) {
 
 }
 
-### **2.3 支付流程**
+### **3.3 支付流程**
 
 开始传输数据和支付支票前，user和provider需要有一个协商过程:
 
@@ -260,13 +279,7 @@ func (user \*User) ReadCheck(file \*File) (\*check.Check, error) {
 
 用户收到数据块后，生成paycheck发送给节点，节点验证paycheck通过以后，再发后续数据块。
 
-支付原理就是每当user收到一个数据块时，用数据块的blockvalue累加current支票的payvalue来生成新的urrent支票并替换掉旧的。
 
-current支票是支票池中正在支付的paycheck（其nonce值最大）。
-
-注：这里需要考虑，万一user收到一个异常数据块（比如数据块大小或者内容错误），如何处理。是否需要让provider对发送的数据块做一个hash？使得user可以根据此hash来验证接收到的数据块是否正确。
-
-// accumulate blockvalue to generate new current paycheck
 
 支付流程：
 
@@ -274,15 +287,17 @@ current支票是支票池中正在支付的paycheck（其nonce值最大）。
 
 2.如果current支票余额足够，则使用累加blockvalue后的payvalue值，调用GenPaycheck生成一张新的paycheck，用其替换存储池中的current支票。
 
-3.如果current支票的余额不够支付，需要调用check池的GetVirgin方法，获取一张已购买但尚未使用过的处女check（需要考虑获取到的处女支票无法支付怎么办？如果获取到的处女支票nonce没有大于当前支付的支票nonce，说明此处女支票还没用就已经过期了，比如它迟到了，导致被user放到支票池的时候就已经有nonce更大的支票在支付了。这种情况需要将此处女支票放入到退钱池中，以便以后向运营商退钱。同时，运营商需要有一个将paycheck的剩余金额退钱的机制）。
+3.如果current支票的余额不够支付，需要调用check池的GetNew方法，获取一张已购买但尚未使用过的check（需要考虑获取到的处女支票无法支付怎么办？如果获取到的支票nonce没有大于当前支付的支票nonce，说明此支票还没用就已经过期了，比如它迟到了，导致被user放到支票池的时候就已经有nonce更大的支票在支付了。这种情况需要将此支票放入到退钱池中，以便以后向运营商退钱。同时，运营商需要有一个将paycheck的剩余金额退钱的机制）。
 
 然后使用此check，以blockvalue作为参数调用GenPaycheck来生成一张新的paycheck替换掉paycheck池里的current支票。
 
-如果GetVirgin返回空，说明user的支票池中已经没有可支付支票，那么提示用户需要购买check。
+如果GetNew返回空，说明user的支票池中已经没有可支付支票，那么提示用户需要购买check。
+
+
 
 注意：
 
-在GetVirgin获取到一个处女支票以后，万一还有一张迟到的具有较小nonce的新购买支票存在，则会导致这张迟到的支票过期（nonce值小于当前正在支付的paycheck），无法用于支付。考虑在check池存储支票的时候，先判断此支票是否是一张迟到的支票，再决定是否将其存入到池中。
+在GetNew获取到一个新支票以后，万一还有一张迟到的具有较小nonce的新购买支票存在，则会导致这张迟到的支票过期（nonce值小于当前正在支付的paycheck），无法用于支付。考虑在check池存储支票的时候，先判断此支票是否是一张迟到的支票，再决定是否将其存入到池中。
 
 可以考虑退钱的方案，但是这有可能会导致恶意用户反复购买退钱，因为购买支票和接收支票是分开的两个动作，运营商在售出支票给user以后，无法控制用户什么时候将购买的支票存储到池里面。用户可能会恶意的先将大nonce的支票放到池中，并花掉，这样的话前面的小nonce支票都无法使用，因而需要退钱。
 
@@ -296,13 +311,13 @@ current支票是支票池中正在支付的paycheck（其nonce值最大）。
 
 答：数据是否传输完成由user来决定，不是由provider来决定。比如user想要的文件大小为100M，当user成功接收到100M数据了，就知道本次传输结束了。如果收到的数据超过了100M，则表示接收的数据不正确，需要报错。
 
-### 2.4 GetVirgin
+### 3.4 GetNew
 
-// 从check池中取出支付目标to的处女check（用于向to支付但尚未使用过的check）。
+// 从check池中取出支付目标to的新check（未使用过的check）。
 
-func (user \*User) GetVirgin(to common.Address) (*check.Check, error){
+func (user \*User) GetNew(to common.Address) (*check.Check, error){
 
-如果paycheck数组为空，表示所有的check都能支付，则直接取出check池的第一张支票返回。
+如果paycheck数组为空，表示没有支票被用过，所有的check都能支付，则直接取出check池的第一张支票返回。
 
 否则，在paycheck数组中取出末尾项的nonce，然后在check池中找出第一张大于此nonce的支票返回。
 
@@ -310,7 +325,7 @@ func (user \*User) GetVirgin(to common.Address) (*check.Check, error){
 
 }
 
-### **2.5 GenPaycheck**
+### **3.5 GenPaycheck**
 
 // 使用check和payvalue值来生成一张paycheck
 
@@ -320,19 +335,33 @@ func (user \*User) GenPaycheck(chk \*check.Check, payValue \*big.Int) (\*check.P
 
 }
 
-其参数为通过GetVirgin方法来返回一张没使用过的check。
+其参数为通过GetNew方法来返回一张没使用过的check。
 
-### **2.6 BlockValue（数据块价值，考虑放到common包中）**
+### **3.6 BlockValue**
+
+数据块价值，考虑放到common包中
 
 根据数据块大小，以及价格系数来确定数据块的实际价值。
 
-func BlockValue(size *big.Int, factor uint64) *big.Int{
+func (user *User) BlockValue(size *big.Int, factor uint64) *big.Int{
 
 return size.Mul(factor)
 
 }
 
-### **2.7 Check池**
+### 3.7 SendPaycheck
+
+func (user *User) SendPaycheck(pc \*check.Paycheck) error{
+
+将paycheck发送给provider，以支付本次数据块的费用。
+
+}
+
+provider在收到paycheck以后，如果paycheck验证不通过，必须要通知user知道，user好重新选择一张check继续支付数据费用。否则传输会挂起。
+
+
+
+### **3.8 CheckPool**
 
 // 每个目标节点to对应一个支票队列，以nonce大小为序
 
@@ -376,31 +405,41 @@ func (p *CheckPool) Store(c *check.Check) error {
 
 
 
-### **2.8 Paycheck池**
-
-// 每张check对应一个paycheck，没使用过的check则对应空值
+### **3.9 PaycheckPool**
 
 type PaycheckPool struct {
 
-Pool map[\*check.Check]*check.Paycheck 	
+Pool []*check.Paycheck 	
 
 }
 
 
 
-// 存储paycheck到池中，可以由paycheck获取到check
+// 存储paycheck到池中
 
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
-先从paycheck获取到check，然后从check获取到paycheck。
+如果paycheck的nonce等于最大nonce，并且payvalue更大，则替换。
 
-如果此支票对应的paycheck为空，则直接存储paycheck。
+如果paycheck的nonce大于最大nonce，则直接append到数组。
 
-否则使用新paycheck替换当前paycheck。
+如果paycheck的nonce小于最大nonce，则插入到数组。
+
+其他情况报错。
 
 这里user没有PreStore方法验证，因为如果user发出非法paycheck会被provider拒收，user根据拒收理由重新生成paycheck，然后重新存储后发送给provider。
 
 }
+
+// 获取当前正在支付的paycheck
+
+func (p *PaycheckPool) GetCurrent(to common.Address) (\*check.Paycheck, error) {
+
+从to对应的paycheck列表中，取出nonce最大的那个返回。
+
+}
+
+
 
 疑问：
 
@@ -414,11 +453,9 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
 所以这里还是使用同一张支票来支付所有文件请求。如果支票余额不足，则会挂起用户的所有支付及传输动作，直到用户购买并使用了新支票。
 
-## 三、**Provider功能**
+## 四、**Provider**
 
-
-
-### **3.1 SendTx（Withdraw的辅助方法）**
+### **4.1 SendTx**
 
 (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
@@ -426,7 +463,7 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
 }
 
-### **3.2 Withdraw**
+### **4.2 Withdraw**
 
 // 从支票池中取出能提现的支票中nonce最小的那个paycheck（注意先查看支票的当前使用比率）进行提现。
 
@@ -446,7 +483,7 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
 }
 
-### **3.3 Paycheck池**
+### **4.3 PaycheckPool**
 
 type PaycheckPool struct {
 
