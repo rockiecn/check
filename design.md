@@ -48,7 +48,7 @@ Data map[common.Address]\[\]*Order
 
 func (pool *OrderPool) Store(o *Order) error {
 
-将一张订单存储到每个user各自的组下面，以订单ID为排列顺序。
+将一张订单存储到每个user各自的队列下面，以订单ID为排列顺序。
 
 }
 
@@ -213,7 +213,27 @@ Func (p *CheckPool) ExceptionRefund(c *check.Check, user common.Address) error {
 
 }
 
-### 2.5 CheckPool
+
+
+### 2.5 Aggregate
+
+// 聚合支票，运营商对节点提供的将多张小额支票聚合成一张大额支票返回给节点
+
+func (op *Operator) Aggregate(data Bytes) (batch \*check.BatchCheck, sigBatch Bytes, error) {
+
+先将序列化的数据反序列化成paycheck数组。
+
+然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
+
+找到这批paycheck的minNonce和maxNonce并计算出总金额。
+
+然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
+
+返回聚合支票batch和签名sigBatch。
+
+}
+
+### 2.6 CheckPool
 
 type CheckPool struct {
 
@@ -236,24 +256,6 @@ func (p *CheckPool) Store(c *check.Check) error {
 func (p *CheckPool) GetCheck(o *Order) (\*check.Check, error) {
 
 根据订单来从支票池中获取对应支票。
-
-}
-
-### 2.6 Aggregate
-
-// 聚合支票，运营商对节点提供的将多张小额支票聚合成一张大额支票返回给节点
-
-func (op *Operator) Aggregate(data Bytes) (batch \*check.BatchCheck, sigBatch Bytes, error) {
-
-先将序列化的数据反序列化成paycheck数组。
-
-然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
-
-找到这批paycheck的minNonce和maxNonce并计算出总金额。
-
-然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
-
-返回聚合支票batch和签名sigBatch。
 
 }
 
@@ -377,7 +379,7 @@ func (user \*User) GenPaycheck(chk \*check.Check, payValue \*big.Int) (\*check.P
 
 根据数据块大小，以及价格系数来确定数据块的实际价值。
 
-func (user *User) BlockValue(size *big.Int, factor uint64) *big.Int{
+func (user *User) BlockValue(size *big.Int, factor int64) *big.Int{
 
 ​	return size.Mul(factor)
 
@@ -405,23 +407,11 @@ provider在收到paycheck以后，如果paycheck验证不通过，必须要通�
 
 
 
-### 3.8 CheckPool
-
-// 每个目标节点to对应一个支票队列，以nonce大小为序
-
-type CheckPool struct {
-
-// to -> []\*check.Check
-
-Data map\[common.Address\][]*check.Check // nonce有序
-
-}
-
-
+### 3.8 PreStore
 
 // 验证接收到的check
 
-func (p *CheckPool) PreStore(chk *check.Check) (bool, error) {
+func (user *User) PreStore(chk *check.Check) (bool, error) {
 
 验证支票签名(operator)。
 
@@ -432,6 +422,18 @@ func (p *CheckPool) PreStore(chk *check.Check) (bool, error) {
 支票在本地池中不能已存在（不能有相同nonce）。
 
 验证通过返回true，否则返回false
+
+}
+
+### 3.9 CheckPool
+
+// 每个目标节点to对应一个支票队列，以nonce大小为序
+
+type CheckPool struct {
+
+// to -> []\*check.Check
+
+Data map\[common.Address\][]*check.Check // nonce有序
 
 }
 
@@ -447,7 +449,7 @@ func (p *CheckPool) Store(c *check.Check) error {
 
 
 
-### 3.9 PaycheckPool*
+### 3.10 PaycheckPool*
 
 type PaycheckPool struct {
 
@@ -491,15 +493,51 @@ func (p *PaycheckPool) GetCurrent(to common.Address) (\*check.Paycheck, error) {
 
 ### 4.1 SendTx
 
-(pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
+func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
 使用paycheck为参数，向链发送提现交易，跟合约交互后向provider付款。
 
 }
 
-### 4.2 提现流程
+### 4.2 CalcPay
 
-(pro *Provider) Withdraw() (retCode uint64, e error) {
+// 计算收到的paycheck实际支付金额
+
+func (pro \*Provider) CalcPay(pchk \*check.Paycheck) (*big.Int, error) {
+
+如果paycheck为空，则直接返回它的payvalue。
+
+否则，计算当前payvalue和paycheck数组末尾项的payvalue的差值并返回。
+
+}
+
+疑问：
+
+万一出现支票池数据丢失的情况怎么办？支票池没数据就无法正确计算支付金额了。
+
+### 4.3 PreStore
+
+// 接收一张paycheck之前的验证步骤
+
+func (pro *Provider) PreStore(pc \*check.Paycheck, size uint64) (bool, error) {
+
+验证一张paycheck的合法性。
+
+首先是两个签名是否正确。
+
+然后是value值是否大于payvalue值。
+
+然后是to地址跟provider地址是否相同。
+
+nonce值是否大于合约中to地址的当前nonce（决定了它是否能够提现）。
+
+nonce值是否大于txNonce的值（决定了它是否能够提现）。
+
+计算实际支付金额（CalcPay）是否等于数据块的自身价值。
+
+}
+
+### 4.4 提现流程
 
 调用paycheck池的GetNextPayable()方法，找到下一个能提现的paycheck
 
@@ -517,49 +555,11 @@ func (p *PaycheckPool) GetCurrent(to common.Address) (\*check.Paycheck, error) {
 
 }
 
-### **4.3 PaycheckPool**
+### 4.5 PaycheckPool
 
 type PaycheckPool struct {
 
 Data []*check.Paycheck 	//按照nonce有序
-
-}
-
-
-
-// 计算收到的paycheck实际支付金额
-
-func (p \*PaycheckPool) CalcPay(pchk \*check.Paycheck) (*big.Int, error) {
-
-如果paycheck为空，则直接返回它的payvalue。
-
-否则，计算当前payvalue和paycheck数组末尾项的payvalue的差值并返回。
-
-}
-
-疑问：
-
-万一出现支票池数据丢失的情况怎么办？支票池没数据就无法正确计算支付金额了。
-
-
-
-// 接收一张paycheck之前的验证步骤
-
-(p *PaycheckPool ) PreStore(pc \*check.Paycheck, size uint64) (bool, error) {
-
-验证一张paycheck的合法性。
-
-首先是两个签名是否正确。
-
-然后是value值是否大于payvalue值。
-
-然后是to地址跟provider地址是否相同。
-
-nonce值是否大于合约中to地址的当前nonce（决定了它是否能够提现）。
-
-nonce值是否大于txNonce的值（决定了它是否能够提现）。
-
-计算实际支付金额（CalcPay）是否等于数据块的自身价值。
 
 }
 

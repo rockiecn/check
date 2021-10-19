@@ -166,3 +166,12 @@ func (pchk *Paycheck) Serialize() []byte {
 
 	return hash
 }
+
+type BatchCheck struct {
+	cheque_batch_to    common.Address // 存储节点号
+	cheque_batch_value uint           // 聚合后的支票面额
+	min_nonce          uint           // 聚合的nonce最小值
+	max_nonce          uint           // 聚合的nonce最大值
+
+	download_cheque_batch_sign []byte // signature of operator
+}

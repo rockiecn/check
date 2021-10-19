@@ -3,7 +3,6 @@ package user
 import (
 	"errors"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/check"
@@ -22,7 +21,7 @@ type User struct {
 type IUser interface {
 	GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paycheck, error)
 
-	Verify(chk *check.Check) (uint64, error)
+	PreStore(chk *check.Check) (bool, error)
 	Pay(dataValue *big.Int) error
 }
 
@@ -35,6 +34,24 @@ func New(sk string) (IUser, error) {
 	}
 
 	return user, nil
+}
+
+// import check from a check file
+func (user *User) ImportCheck(path string) (*check.Check, error) {
+	//用户从接收到的支票文件导入支票并返回。
+	return nil, nil
+}
+
+// get a check that has not been used yet
+func (user *User) GetNew(to common.Address) (*check.Check, error) {
+	/*
+		如果paycheck数组为空，表示没有支票被用过，所有的check都能支付，则直接取出check池的第一张支票返回。
+
+		否则，在paycheck数组中取出末尾项的nonce（队列中的最大nonce），然后在check池中找出第一张大于此nonce的支票返回。
+
+		如果没找到，表示当前已无可用支票，返回空。
+	*/
+	return nil, nil
 }
 
 // generate Paycheck based on check, sig of Paycheck is updated
@@ -55,43 +72,48 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 	return pchk, nil
 }
 
+func (user *User) SendPaycheck(to common.Address, pc *check.Paycheck) error {
+	//将paycheck发送给provider节点，以支付本次数据块的费用。
+	return nil
+}
+
 // verify received check
-func (user *User) Verify(chk *check.Check) (uint64, error) {
+func (user *User) PreStore(chk *check.Check) (bool, error) {
 
 	// verify signature
 	ok, err := chk.Verify()
 	if err != nil {
-		return 1, err
+		return false, err
 	}
 	if !ok {
-		return 1, errors.New("check signature verify failed")
+		return false, errors.New("check signature verify failed")
 	}
 
 	// from = user
 	if chk.FromAddr != user.UserAddr {
-		return 2, errors.New("check's from address not user")
+		return false, errors.New("check's from address not user")
 	}
 
 	// nonce
 	contractNonce, err := comn.QueryNonce(user.UserAddr, chk.ContractAddr, chk.ToAddr)
 	if err != nil {
-		return 3, errors.New("query nonce error")
+		return false, errors.New("query nonce error")
 	}
 	if chk.Nonce <= contractNonce {
-		return 3, errors.New("check nonce should larger than contract nonce")
+		return false, errors.New("check nonce should larger than contract nonce")
 	}
 
 	// check must not exist in pool
 	for _, v := range user.PoolA.Data[chk.ToAddr] {
 		if chk.Nonce == v.Nonce {
-			return 4, errors.New("check already exist in check pool")
+			return false, errors.New("check already exist in check pool")
 		}
 	}
 
 	// store check into pool
 	user.PoolA.Store(chk)
 
-	return 0, nil
+	return true, nil
 }
 
 // get a new check for pay, the first check next to current nonce
@@ -123,11 +145,6 @@ func (user *User) GetVirgin(to common.Address) (*check.Check, error) {
 
 	// not found
 	return nil, errors.New("virgin check is not found")
-}
-
-// price = size * factor
-func (user *User) Price(size *big.Int, factor *big.Int) *big.Int {
-	return size.Mul(size, factor)
 }
 
 // the process of pay: user send paycheck to provider
@@ -201,25 +218,4 @@ func (p *PaycheckPool) GetCurrent(to common.Address) (*check.Paycheck, error) {
 	} else {
 		return paychecks[len(paychecks)-1], nil
 	}
-}
-
-type Receipt struct {
-	Dt    time.Time      // 购买日期
-	Value *big.Int       // 购买金额
-	Token common.Address // 货币类型
-	Op    common.Address // 运营商地址
-	From  common.Address // 付款方地址
-	To    common.Address // 收款方地址
-	Nonce uint64         // nonce
-	Sig   string         // 运营商的签名
-}
-
-type ReceiptPool struct {
-	Pool []*Receipt
-}
-
-// 存储一张收据到收据池
-func (p *ReceiptPool) Store(r *Receipt) error {
-	p.Pool = append(p.Pool, r)
-	return nil
 }

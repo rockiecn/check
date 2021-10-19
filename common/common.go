@@ -148,3 +148,9 @@ func QueryNonce(sender common.Address, contract common.Address, to common.Addres
 
 	return nonce, nil
 }
+
+//
+func BlockValue(s *big.Int, factor int64) *big.Int {
+	bigF := big.NewInt(factor)
+	return s.Mul(s, bigF)
+}

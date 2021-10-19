@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -14,6 +13,7 @@ import (
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
 	comn "github.com/rockiecn/check/common"
+	"github.com/rockiecn/check/order"
 )
 
 type Operator struct {
@@ -27,7 +27,7 @@ type Operator struct {
 }
 
 type IOperator interface {
-	GenCheck(a *Apply) (*check.Check, error)
+	GenCheck(o *order.Order) (*check.Check, error)
 	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
 
 	// query current balance of contract
@@ -36,8 +36,6 @@ type IOperator interface {
 	QueryNonce(to common.Address) (uint64, error)
 	// give money to contract
 	Deposit(value *big.Int) (*types.Transaction, error)
-	// sell a check to a user based on an apply
-	Sell(a *Apply) (*Receipt, error)
 }
 
 // new operator, a contract is deployed.
@@ -57,30 +55,6 @@ func New(sk string, token string) (IOperator, *types.Transaction, error) {
 	op.ContractAddr = addr
 
 	return op, tx, nil
-}
-
-// generate a check with apply
-func (op *Operator) GenCheck(a *Apply) (*check.Check, error) {
-	chk := &check.Check{
-		Value:        a.Value,
-		TokenAddr:    a.Token,
-		FromAddr:     a.From,
-		ToAddr:       a.To,
-		Nonce:        op.Nonces[a.To] + 1,
-		OpAddr:       op.OpAddr,
-		ContractAddr: op.ContractAddr,
-	}
-
-	// signed by operator
-	err := chk.Sign(op.OpSK)
-	if err != nil {
-		return nil, err
-	}
-
-	// update nonce to latest nonce
-	op.Nonces[a.To] = chk.Nonce
-
-	return chk, nil
 }
 
 // value: money to new contract
@@ -209,33 +183,48 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	return tx, nil
 }
 
-// apply to buy a check
-type Apply struct {
-	Value *big.Int       // 购买的支票金额
-	Token common.Address // 购买的货币类型
-	From  common.Address // 支票的支付方地址
-	To    common.Address // 支票的接收方地址
-	Date  time.Time      // 购买日期
-	Name  string         // 购买人姓名
-	Tel   string         // 购买人联系方式
-	Sig   string         // 运营商的签名
+// generate a check with apply
+func (op *Operator) GenCheck(o *order.Order) (*check.Check, error) {
+	chk := &check.Check{
+		Value:        o.Value,
+		TokenAddr:    o.Token,
+		FromAddr:     o.From,
+		ToAddr:       o.To,
+		Nonce:        op.Nonces[o.To] + 1,
+		OpAddr:       op.OpAddr,
+		ContractAddr: op.ContractAddr,
+	}
+
+	// signed by operator
+	err := chk.Sign(op.OpSK)
+	if err != nil {
+		return nil, err
+	}
+
+	// update nonce to latest nonce
+	op.Nonces[o.To] = chk.Nonce
+
+	return chk, nil
 }
 
-// receipt of a check
-type Receipt struct {
-	Dt    time.Time      // 购买日期
-	Value *big.Int       // 购买金额
-	Token common.Address // 货币类型
-	Op    common.Address // 运营商地址
-	From  common.Address // 付款方地址
-	To    common.Address // 收款方地址
-	Nonce uint64         // nonce
-	Sig   string         // 运营商的签名
+func (op *Operator) SendCheck(o *order.Order) error {
+	//先使用订单在支票池调用GetCheck方法找到指定支票，然后将支票发送到订单中的邮箱地址。
+	return nil
 }
 
-// sell a check to user, based on the apply, return a receipt
-func (op *Operator) Sell(a *Apply) (*Receipt, error) {
-	return nil, nil
+func (op *Operator) Aggregate(data []byte) (batch *check.BatchCheck, sigBatch []byte, err error) {
+	/*
+		先将序列化的数据反序列化成paycheck数组。
+
+		然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
+
+		找到这批paycheck的minNonce和maxNonce并计算出总金额。
+
+		然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
+
+		返回聚合支票batch和签名sigBatch。
+	*/
+	return nil, nil, nil
 }
 
 type CheckPool struct {
@@ -258,15 +247,8 @@ func (p *CheckPool) Store(c *check.Check) error {
 	return nil
 }
 
-// get a check by receipt, can be called by user with rpc
-func (p *CheckPool) Get(r *Receipt) (*check.Check, error) {
-	s := p.Data[r.To]
+// get a check according to order
+func (p *CheckPool) GetCheck(o *order.Order) (*check.Check, error) {
 
-	for _, v := range s {
-		if r.Nonce == v.Nonce {
-			return v, nil
-		}
-	}
-
-	return nil, errors.New("check not found")
+	return nil, nil
 }
