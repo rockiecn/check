@@ -24,15 +24,10 @@ type Provider struct {
 }
 
 type IProvider interface {
-	//WithDraw(pc *check.Paycheck) (*types.Transaction, error)
-	Store(pc *check.Paycheck) (bool, error)
-
 	// send withdraw transaction to contract
 	SendTx(pc *check.Paycheck) (tx *types.Transaction, err error)
-
-	Verify(pchk *check.Paycheck, dataValue *big.Int) (uint64, error)
 	CalcPay(pchk *check.Paycheck) (*big.Int, error)
-	WithDraw() (retCode uint64, e error)
+	PreStore(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
 }
 
 func New(sk string) (IProvider, error) {
