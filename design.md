@@ -95,13 +95,27 @@ func (op *Operator) GenCheck(o *Order) (*check.Check, error) {
 ### 2.3 Mail
 
 ```go
-func (op *Operator) Mail(o *Order) error {
+func (op *Operator) Mail(od *Order) error {
 
 }
 先使用订单在支票池调用GetCheck方法找到指定支票，然后将支票发送到订单中的邮箱地址。
 ```
 
-### 2.4 Refund
+### 2.4 Aggregate
+
+```go
+// 聚合支票，运营商对节点提供的将多张小额支票聚合成一张大额支票返回给节点
+func (op *Operator) Aggregate(data Bytes) (batch *check.BatchCheck, sigBatch Bytes, error) {
+
+}
+先将序列化的数据反序列化成paycheck数组。
+然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
+找到这批paycheck的minNonce和maxNonce并计算出总金额。
+然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
+返回聚合支票batch和签名sigBatch。
+```
+
+### 2.5 Refund
 
 ```go
 当user的一张check或者paycheck需要退钱的时候，如何实现？
@@ -157,20 +171,6 @@ func (p *CheckPool) ExceptionRefund(c *check.Check, user common.Address) error {
 记录成功后返回成功，否则返回失败。
 ```
 
-### 2.5 Aggregate
-
-```go
-// 聚合支票，运营商对节点提供的将多张小额支票聚合成一张大额支票返回给节点
-func (op *Operator) Aggregate(data Bytes) (batch *check.BatchCheck, sigBatch Bytes, error) {
-
-}
-先将序列化的数据反序列化成paycheck数组。
-然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
-找到这批paycheck的minNonce和maxNonce并计算出总金额。
-然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
-返回聚合支票batch和签名sigBatch。
-```
-
 ### 2.6 CheckPool
 
 ```go
@@ -192,7 +192,7 @@ func (p *CheckPool) GetCheck(o *Order) (*check.Check, error) {
 根据订单来从支票池中获取对应支票。
 ```
 
-### Questions
+### 2.7 Questions
 
 ```go
 订单系统如何跟运营商沟通？
@@ -200,7 +200,7 @@ func (p *CheckPool) GetCheck(o *Order) (*check.Check, error) {
 以及支票付款以后如何调用operator的生成支票的GenCheck方法？
 ```
 
-## 三、**User**
+## 三、User
 
 ### 3.1 购买支票流程
 
@@ -263,7 +263,7 @@ user方发出的paycheck有很多原因会在provider那里验证失败，重点
 
 ```go
 // 从check池中取出支付目标to的新check（未使用过的check）。
-func (user \*User) GetNew(to common.Address) (*check.Check, error){
+func (user *User) GetNew(to common.Address) (*check.Check, error){
     
 }
 如果paycheck数组为空，表示没有支票被用过，所有的check都能支付，则直接取出check池的第一张支票返回。
@@ -295,7 +295,7 @@ func (user *User) BlockValue(size *big.Int, factor int64) *big.Int{
 ### 3.7 SendPaycheck*
 
 ```go
-func (user *User) SendPaycheck(to common.Address, pc \*check.Paycheck) error{
+func (user *User) SendPaycheck(to common.Address, pc *check.Paycheck) error{
 
 }
 将paycheck发送给provider节点，以支付本次数据块的费用。
@@ -372,7 +372,21 @@ func (p *PaycheckPool) GetCurrent(to common.Address) (*check.Paycheck, error) {
 
 ## 四、Provider
 
-### 4.1 SendTx
+### 4.1 提现流程
+
+```go
+流程：
+调用paycheck池的GetNextPayable()方法，找到下一个能提现的paycheck
+如果没找到，则返回错误，表示当前没有可用于提现的paycheck。
+如果找到了，先使用此paycheck的nonce更新Provider结构的txNonce值。
+然后使用此paycheck作为参数，调用SendTx向链发送提现交易，以获取收益，并更新合约中的nonce值。
+
+疑问：合约交易发送成功了是否能保证此交易一定能上链？
+
+答：不能保证。但是不影响提现流程，因为如果一个paycheck没有上链成功，那么合约的nonce值就没有被改变，在下次提现的时候，还是会把这个paycheck再次找出来（依据合约的nonce来查找），并再次使用它发出提现交易。
+```
+
+### 4.2 SendTx
 
 ```go
 func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
@@ -381,7 +395,7 @@ func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err erro
 使用paycheck为参数，向链发送提现交易，跟合约交互后向provider付款。
 ```
 
-### 4.2 CalcPay
+### 4.3 CalcPay
 
 ```go
 // 计算收到的paycheck实际支付金额
@@ -395,11 +409,11 @@ func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
 万一出现支票池数据丢失的情况怎么办？支票池没数据就无法正确计算支付金额了。
 ```
 
-### 4.3 PreStore*
+### 4.4 PreStore*
 
 ```go
 // 接收一张paycheck之前的验证步骤
-func (pro *Provider) PreStore(pc \*check.Paycheck, size uint64) (bool, error) {
+func (pro *Provider) PreStore(pc *check.Paycheck, size uint64) (bool, error) {
 
 }
 验证一张paycheck的合法性。
@@ -409,20 +423,6 @@ func (pro *Provider) PreStore(pc \*check.Paycheck, size uint64) (bool, error) {
 nonce值是否大于合约中to地址的当前nonce（决定了它是否能够提现）。
 nonce值是否大于txNonce的值（决定了它是否能够提现）。
 计算实际支付金额（CalcPay）是否等于数据块的自身价值。
-```
-
-### 4.4 提现流程
-
-```go
-流程：
-调用paycheck池的GetNextPayable()方法，找到下一个能提现的paycheck
-如果没找到，则返回错误，表示当前没有可用于提现的paycheck。
-如果找到了，先使用此paycheck的nonce更新Provider结构的txNonce值。
-然后使用此paycheck作为参数，调用SendTx向链发送提现交易，以获取收益，并更新合约中的nonce值。
-
-疑问：合约交易发送成功了是否能保证此交易一定能上链？
-
-答：不能保证。但是不影响提现流程，因为如果一个paycheck没有上链成功，那么合约的nonce值就没有被改变，在下次提现的时候，还是会把这个paycheck再次找出来（依据合约的nonce来查找），并再次使用它发出提现交易。
 ```
 
 ### 4.5 PaycheckPool
