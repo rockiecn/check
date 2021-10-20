@@ -1,0 +1,25 @@
+syntax = "proto3";
+package pb;
+
+option go_package = "../pb";
+
+message Check {
+	string value = 1;
+	string token = 2;	// token
+	uint64 nonce = 3;
+	string from = 4;	// user
+	string to = 5;	// storage
+	string op = 6; // operator
+	string contract = 7; //运营合约地址
+	bytes chkSig = 8; 
+}
+
+message PayCheck {
+	Check check = 1;
+	string payvalue = 2; //支付给存储节点的数额必须小于等于cheque.max_amount
+	bytes payCheckSig = 3; //
+}
+
+message SerializeData {
+	repeated PayCheck Data  = 1;
+}

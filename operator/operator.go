@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -14,6 +15,8 @@ import (
 	"github.com/rockiecn/check/check"
 	comn "github.com/rockiecn/check/common"
 	"github.com/rockiecn/check/order"
+	"github.com/rockiecn/check/pb"
+	"google.golang.org/protobuf/proto"
 )
 
 type Operator struct {
@@ -27,15 +30,17 @@ type Operator struct {
 }
 
 type IOperator interface {
-	GenCheck(o *order.Order) (*check.Check, error)
 	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
-
 	// query current balance of contract
 	QueryBalance() (*big.Int, error)
 	// query contract nonce of a provider
 	QueryNonce(to common.Address) (uint64, error)
 	// give money to contract
 	Deposit(value *big.Int) (*types.Transaction, error)
+
+	GenCheck(o *order.Order) (*check.Check, error)
+	Mail(o *order.Order) error
+	Aggregate(data []byte) (batch *check.BatchCheck, err error)
 }
 
 // new operator, a contract is deployed.
@@ -183,14 +188,24 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	return tx, nil
 }
 
-// generate a check with apply
+// generate a new check with order
 func (op *Operator) GenCheck(o *order.Order) (*check.Check, error) {
+
+	var newNonce uint64
+
+	checks := op.Pool.Data[o.To]
+	if len(checks) == 0 {
+		newNonce = 1
+	} else {
+		newNonce = checks[len(checks)-1].Nonce + 1
+	}
+
 	chk := &check.Check{
 		Value:        o.Value,
 		TokenAddr:    o.Token,
 		FromAddr:     o.From,
 		ToAddr:       o.To,
-		Nonce:        op.Nonces[o.To] + 1,
+		Nonce:        newNonce,
 		OpAddr:       op.OpAddr,
 		ContractAddr: op.ContractAddr,
 	}
@@ -201,30 +216,101 @@ func (op *Operator) GenCheck(o *order.Order) (*check.Check, error) {
 		return nil, err
 	}
 
-	// update nonce to latest nonce
-	op.Nonces[o.To] = chk.Nonce
+	// add new nonce into map
+	op.Nonces[o.To] = newNonce
 
 	return chk, nil
 }
 
-func (op *Operator) SendCheck(o *order.Order) error {
+func (op *Operator) Mail(o *order.Order) error {
 	//先使用订单在支票池调用GetCheck方法找到指定支票，然后将支票发送到订单中的邮箱地址。
 	return nil
 }
 
-func (op *Operator) Aggregate(data []byte) (batch *check.BatchCheck, sigBatch []byte, err error) {
-	/*
-		先将序列化的数据反序列化成paycheck数组。
+// for serialize
+type SerialData struct {
+	Data []check.Paycheck
+}
 
-		然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
+// mutli paycheck to a bacthCheck
+func (op *Operator) Aggregate(data []byte) (*check.BatchCheck, error) {
 
-		找到这批paycheck的minNonce和maxNonce并计算出总金额。
+	if data == nil {
+		return nil, errors.New("nil data received")
+	}
 
-		然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
+	SD := &pb.SerializeData{}
+	// parse to pb data
+	if err := proto.Unmarshal(data, SD); err != nil {
+		log.Println("Failed to parse SerialData:", err)
+		return nil, err
+	}
 
-		返回聚合支票batch和签名sigBatch。
-	*/
-	return nil, nil, nil
+	if len(SD.Data) == 0 {
+		return nil, errors.New("no paycheck in data")
+	}
+
+	// initialize min and max
+	minNonce := SD.Data[0].Check.Nonce
+	maxNonce := SD.Data[0].Check.Nonce
+	totalPayvalue := new(big.Int)
+	toAddr := common.HexToAddress(SD.Data[0].Check.To)
+	for _, v := range SD.Data {
+		// contruct paycheck from pb data
+		pc := &check.Paycheck{}
+		pc.Check.Value, _ = new(big.Int).SetString(v.Check.Value, 10)
+		pc.Check.TokenAddr = common.HexToAddress(v.Check.Token)
+		pc.Check.Nonce = v.Check.Nonce
+		pc.Check.FromAddr = common.HexToAddress(v.Check.From)
+		pc.Check.ToAddr = common.HexToAddress(v.Check.To)
+		pc.Check.OpAddr = common.HexToAddress(v.Check.Op)
+		pc.Check.ContractAddr = common.HexToAddress(v.Check.Contract)
+		pc.Check.CheckSig = v.Check.ChkSig
+		pc.PayValue, _ = new(big.Int).SetString(v.Payvalue, 10)
+		pc.PaycheckSig = v.PayCheckSig
+
+		// verify both signs
+		v1, _ := pc.Verify()
+		v2, _ := pc.Check.Verify()
+		if !v1 || !v2 {
+			return nil, errors.New("signature verify failed")
+		}
+
+		// payvalue
+		if pc.PayValue.Cmp(pc.Check.Value) > 0 {
+			return nil, errors.New("payvalue exceed value")
+		}
+
+		// update minNonce, maxNonce
+		if pc.Check.Nonce < minNonce {
+			minNonce = v.Check.Nonce
+		}
+		if pc.Check.Nonce > maxNonce {
+			maxNonce = v.Check.Nonce
+		}
+
+		// accumulate payvalue
+		totalPayvalue = totalPayvalue.Add(totalPayvalue, pc.PayValue)
+
+		// to address must be same
+		if common.HexToAddress(v.Check.To) != toAddr {
+			return nil, errors.New("to address not identical")
+		}
+	}
+
+	// construct batch check
+	batch := &check.BatchCheck{}
+	batch.ToAddr = toAddr
+	batch.BatchValue = totalPayvalue
+	batch.MinNonce = minNonce
+	batch.MaxNonce = maxNonce
+	// sign
+	err := batch.Sign(op.OpSK)
+	if err != nil {
+		return nil, errors.New("batch sign failed")
+	}
+
+	return batch, nil
 }
 
 type CheckPool struct {

@@ -168,10 +168,72 @@ func (pchk *Paycheck) Serialize() []byte {
 }
 
 type BatchCheck struct {
-	cheque_batch_to    common.Address // 存储节点号
-	cheque_batch_value uint           // 聚合后的支票面额
-	min_nonce          uint           // 聚合的nonce最小值
-	max_nonce          uint           // 聚合的nonce最大值
+	OpAddr     common.Address // operator address
+	ToAddr     common.Address // 存储节点号
+	BatchValue *big.Int       // 聚合后的支票面额
+	MinNonce   uint64         // 聚合的nonce最小值
+	MaxNonce   uint64         // 聚合的nonce最大值
 
-	download_cheque_batch_sign []byte // signature of operator
+	BatchSig []byte // signature of operator
+}
+
+// Sign BatchCheck by opertator's sk
+func (bc *BatchCheck) Sign(sk string) error {
+
+	hash := bc.Serialize()
+
+	//
+	priKeyECDSA, err := crypto.HexToECDSA(sk)
+	if err != nil {
+		return errors.New("hex to ecdsa failed when sign paycheck")
+	}
+
+	// sign to bytes
+	sigByte, err := crypto.Sign(hash, priKeyECDSA)
+	if err != nil {
+		return errors.New("sign paycheck error")
+	}
+
+	bc.BatchSig = sigByte
+
+	return nil
+}
+
+// verify signature of paycheck
+func (bc *BatchCheck) Verify() (bool, error) {
+	hash := bc.Serialize()
+
+	// signature to public key
+	pubKeyECDSA, err := crypto.SigToPub(hash, bc.BatchSig)
+	if err != nil {
+		return false, errors.New("SigToPub err")
+	}
+
+	// pub key to common.address
+	signerAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
+
+	ok := signerAddr == bc.OpAddr
+
+	return ok, nil
+}
+
+// calc hash of BatchCheck, used to sign and verify
+func (bc *BatchCheck) Serialize() []byte {
+
+	opBytes := bc.OpAddr.Bytes()
+	toBytes := bc.ToAddr.Bytes()
+	valuePad32 := common.LeftPadBytes(bc.BatchValue.Bytes(), 32)
+	minPad8 := common.LeftPadBytes(comn.Uint64ToBytes(bc.MinNonce), 8)
+	maxPad8 := common.LeftPadBytes(comn.Uint64ToBytes(bc.MaxNonce), 8)
+
+	// calc hash
+	hash := crypto.Keccak256(
+		opBytes,
+		toBytes,
+		valuePad32,
+		minPad8,
+		maxPad8,
+	)
+
+	return hash
 }
