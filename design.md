@@ -55,13 +55,13 @@ func (pool *OrderPool) Pay(user common.Address, ID uint64) (* Order, error) {
 
 ```go
 //部署合约
-func (op *Operator) DeployContract(value \*big.Int) (\*tx types.Transaction, ctrAddr common.Address, err error) {
+func (op *Operator) DeployContract(value *big.Int) (*tx types.Transaction, ctrAddr common.Address, err error) {
 
 }
 部署银行合约。
 
 //合约余额查询
-func (op *Operator) QueryBalance() (\*big.Int, error) {
+func (op *Operator) QueryBalance() (*big.Int, error) {
 
 }
 查询合约当前余额。
@@ -73,7 +73,7 @@ func (op *Operator) QueryNonce(to common.Address) (uint64, error) {
 查询指定provider的当前nonce。
 
 //向银行合约充钱
-func (op *Operator) Deposit(value \*big.Int) error {
+func (op *Operator) Deposit(value *big.Int) error {
 
 }
 向合约转账。
@@ -83,20 +83,19 @@ func (op *Operator) Deposit(value \*big.Int) error {
 
 ```go
 // 用户订单支付完成后，使用user提交的订单来生成一张check
-func (op *Operator) GenCheck(o \*Order) (\*check.Check, error) {
+func (op *Operator) GenCheck(o *Order) (*check.Check, error) {
 
 }
-当用户购买支票时，根据用户提供的订单，为用户生成一张支票：先在支票池中根据to值定位到对应的支票队列，然后查看末尾支票的nonce值maxNonce（最大nonce值），然后使用maxNonce+1做为nonce来生成新的check。
-
-如果支票队列为空，表示这是给此节点支付的第一张支票，nonce设为1。
-
+当用户支付订单费用后，根据用户提供的订单，为用户生成一张支票：
+先在支票池中根据to值定位到对应的支票队列，然后查看末尾支票的nonce值maxNonce（队列中最大），然后使用maxNonce+1做为nonce来生成新的check。
+如果支票队列为空，表示这是给节点支付的第一张支票，nonce设为1。
 另外支票还需加入operator自身的地址等相关信息。
 ```
 
-### 2.3 SendCheck
+### 2.3 Mail
 
 ```go
-func (op *Operator) SendCheck(o *Order) error {
+func (op *Operator) Mail(o *Order) error {
 
 }
 先使用订单在支票池调用GetCheck方法找到指定支票，然后将支票发送到订单中的邮箱地址。
@@ -123,9 +122,7 @@ User的某张check，由于某种原因还没使用就过期了，无法用于�
 如何知道某张支票是否已经退过钱了（这个可以在check池中想办法解决）？
 运营商线下保存每次退钱记录，先考虑在check池中记录每次退钱动作。
 建立一个退钱池，记录跟每个节点相对应的所有已退款的支票。
-```
 
-```go
 //退款池，记录每张已退款的支票。
 type RefundPool struct {
     // to -> []*check
@@ -422,9 +419,7 @@ nonce值是否大于txNonce的值（决定了它是否能够提现）。
 如果没找到，则返回错误，表示当前没有可用于提现的paycheck。
 如果找到了，先使用此paycheck的nonce更新Provider结构的txNonce值。
 然后使用此paycheck作为参数，调用SendTx向链发送提现交易，以获取收益，并更新合约中的nonce值。
-```
 
-```go
 疑问：合约交易发送成功了是否能保证此交易一定能上链？
 
 答：不能保证。但是不影响提现流程，因为如果一个paycheck没有上链成功，那么合约的nonce值就没有被改变，在下次提现的时候，还是会把这个paycheck再次找出来（依据合约的nonce来查找），并再次使用它发出提现交易。
