@@ -318,11 +318,23 @@ type CheckPool struct {
 // called when a new check is generated.
 func (p *CheckPool) Store(chk *check.Check) error {
 	s := p.Data[chk.ToAddr]
+	// extend cap
+	if chk.Nonce > uint64(len(s)) {
+		for i := uint64(0); i < chk.Nonce-uint64(len(s)); i++ {
+			s = append(s, nil)
+		}
+
+		s[chk.Nonce] = chk
+		return nil
+	}
+
+	//
 	if s[chk.Nonce] != nil {
 		return errors.New("check already exist")
 	}
 	s[chk.Nonce] = chk
 	return nil
+
 }
 
 // get a check according to order
