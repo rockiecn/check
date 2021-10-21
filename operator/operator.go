@@ -319,18 +319,38 @@ type CheckPool struct {
 }
 
 // called when a new check is generated.
-func (p *CheckPool) Store(c *check.Check) error {
-	s := p.Data[c.ToAddr]
+func (p *CheckPool) Store(chk *check.Check) error {
 
-	// new nonce must be max
-	if len(s) > 0 && c.Nonce <= s[len(s)-1].Nonce {
-		return errors.New("nonce not max")
+	s := p.Data[chk.ToAddr]
+
+	// slice is nil
+	if len(s) == 0 {
+		s = append(s, chk)
+		p.Data[chk.ToAddr] = s
+		return nil
 	}
 
-	// ok to append
-	p.Data[c.ToAddr] = append(p.Data[c.ToAddr], c)
+	// insert
+	for k, v := range s {
+		// max
+		if k == len(s)-1 {
+			s = append(s, chk)
+			p.Data[chk.ToAddr] = s
+			return nil
+		}
+		// right position
+		if chk.Nonce > v.Nonce && chk.Nonce < s[k+1].Nonce {
+			s = append(s[:k+1], append([]*check.Check{chk}, s[k+1:]...)...)
+			p.Data[chk.ToAddr] = s
+			return nil
+		}
+		// already exist
+		if chk.Nonce == v.Nonce {
+			return errors.New("check already exist")
+		}
+	}
 
-	return nil
+	return errors.New("exception")
 }
 
 // get a check according to order
