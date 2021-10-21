@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -16,7 +15,6 @@ import (
 	comn "github.com/rockiecn/check/common"
 	"github.com/rockiecn/check/order"
 	"github.com/rockiecn/check/pb"
-	"google.golang.org/protobuf/proto"
 )
 
 type Operator struct {
@@ -233,29 +231,28 @@ type SerialData struct {
 }
 
 // mutli paycheck to a bacthCheck
-func (op *Operator) Aggregate(data []byte) (*check.BatchCheck, error) {
+func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error) {
 
-	if data == nil {
-		return nil, errors.New("nil data received")
-	}
+	/*
+		SD := &pb.SerializeData{}
+		// parse to pb data
+		if err := proto.Unmarshal(data, SD); err != nil {
+			log.Println("Failed to parse SerialData:", err)
+			return nil, err
+		}
+	*/
 
-	SD := &pb.SerializeData{}
-	// parse to pb data
-	if err := proto.Unmarshal(data, SD); err != nil {
-		log.Println("Failed to parse SerialData:", err)
-		return nil, err
-	}
-
-	if len(SD.Data) == 0 {
+	// no data
+	if len(wrap.Data) == 0 {
 		return nil, errors.New("no paycheck in data")
 	}
 
 	// initialize min and max
-	minNonce := SD.Data[0].Check.Nonce
-	maxNonce := SD.Data[0].Check.Nonce
+	minNonce := wrap.Data[0].Check.Nonce
+	maxNonce := wrap.Data[0].Check.Nonce
 	totalPayvalue := new(big.Int)
-	toAddr := common.HexToAddress(SD.Data[0].Check.To)
-	for _, v := range SD.Data {
+	toAddr := common.HexToAddress(wrap.Data[0].Check.To)
+	for _, v := range wrap.Data {
 		// contruct paycheck from pb data
 		pc := &check.Paycheck{}
 		pc.Check.Value, _ = new(big.Int).SetString(v.Check.Value, 10)
@@ -320,37 +317,12 @@ type CheckPool struct {
 
 // called when a new check is generated.
 func (p *CheckPool) Store(chk *check.Check) error {
-
 	s := p.Data[chk.ToAddr]
-
-	// slice is nil
-	if len(s) == 0 {
-		s = append(s, chk)
-		p.Data[chk.ToAddr] = s
-		return nil
+	if s[chk.Nonce] != nil {
+		return errors.New("check already exist")
 	}
-
-	// insert
-	for k, v := range s {
-		// max
-		if k == len(s)-1 {
-			s = append(s, chk)
-			p.Data[chk.ToAddr] = s
-			return nil
-		}
-		// right position
-		if chk.Nonce > v.Nonce && chk.Nonce < s[k+1].Nonce {
-			s = append(s[:k+1], append([]*check.Check{chk}, s[k+1:]...)...)
-			p.Data[chk.ToAddr] = s
-			return nil
-		}
-		// already exist
-		if chk.Nonce == v.Nonce {
-			return errors.New("check already exist")
-		}
-	}
-
-	return errors.New("exception")
+	s[chk.Nonce] = chk
+	return nil
 }
 
 // get a check according to order
