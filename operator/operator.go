@@ -315,6 +315,10 @@ type CheckPool struct {
 	Data map[common.Address][]*check.Check
 }
 
+// 先查看当前nonce是否越界
+// 如果nonce越界，则先使用nil填充池，直到nonce前的位置，然后把nocne添加到pool中
+// 如果nonce没有越界，并且check已经存在于池中，则报错返回
+// 如果nonce没越界，并且check不存在于池中，则将check直接放到nonce指定的位置
 // called when a new check is generated.
 func (p *CheckPool) Store(chk *check.Check) error {
 	// get slice

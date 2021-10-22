@@ -85,8 +85,7 @@ func (op *Operator) GenCheck(o *Order) (*check.Check, error) {
 
 }
 实现逻辑：
-当用户支付订单费用后，根据用户提供的订单，为用户生成一张支票：
-先在支票池中根据to值定位到对应的支票队列，然后查看末尾支票的nonce值maxNonce（队列中最大），然后使用maxNonce+1做为nonce来生成新的check。
+先在支票池中根据订单中的节点地址定位到对应的支票队列，然后查看末尾支票的nonce值maxNonce（队列中最大），然后使用maxNonce+1做为nonce来生成新的check。
 如果支票队列为空，表示这是给节点支付的第一张支票，nonce设为1。
 另外支票还需加入operator自身的地址等相关信息。
 ```
@@ -110,11 +109,15 @@ func (op *Operator) Aggregate(data []byte) (batch *check.BatchCheck, error) {
 
 }
 实现逻辑：
-先将序列化的数据反序列化成paycheck数组。
-然后验证每一张paycheck的签名（operator和user），以及paycheck的payvalue值是否不大于value值。
-找到这批paycheck的minNonce和maxNonce并计算出总金额。
-然后使用节点地址，支票累计总金额，minNonce，maxNonce生成聚合支票，并对聚合支票生成签名sig。
-返回聚合支票batch和签名sigBatch。
+先将收到的数据反序列化（数据结构成员包含paycheck数组）
+验证数组中每一张paycheck的签名（operator和user）
+确认每张支票的payvalue值不能超过其value值。
+计算这批paycheck的payvalue累加值（总支付金额）
+找到这批paycheck的minNonce和maxNonce
+验证所有paycheck的节点地址to是否一样
+计算operator对聚合支票的签名sig，签名内容包含所有数据成员
+然后使用节点地址，累计总金额，minNonce，maxNonce，sig，生成聚合支票。
+返回聚合支票batch
 ```
 
 ### 2.5 Refund
@@ -188,6 +191,10 @@ type CheckPool struct {
 func (p *CheckPool) Store(chk *check.Check) error {
 
 }
+先查看当前nonce是否越界
+如果nonce越界，则先使用nil填充池，直到nonce前的位置，然后把nocne添加到pool中
+如果nonce没有越界，并且check已经存在于池中，则报错返回
+如果nonce没越界，并且check不存在于池中，则将check直接放到nonce指定的位置
 
 // 根据订单来从支票池中获取对应支票。
 func (p *CheckPool) GetCheck(od *Order) (*check.Check, error) {
@@ -274,9 +281,10 @@ func (user *User) GetNew(to common.Address) (*check.Check, error){
     
 }
 实现逻辑：
-如果paycheck队列为空，表示没有支票被用过，所有的check都能支付，则直接取出check池的第一张支票返回。
-如果paycheck队列不为空，则在paycheck队列中取出末尾项的nonce（队列中的最大nonce），然后在check池中找出第一张大于此nonce的支票返回。
-如果没找到，表示当前已无可用支票，返回空。
+// 如果paycheck队列为空，表示没有支票被用过，所有的check都能支付，则直接取出check池的第一张支票返回。
+// 如果paycheck队列不为空，则在paycheck队列中取出末尾项的nonce（队列中的最大nonce）
+// 然后在check池中从nonce+1开始向后找，一直找到存在支票的数据项返回。
+// 如果一直找到切片末尾都是空值，表示当前已无可用支票，返回空。
 ```
 
 ### 3.5 GenPaycheck
@@ -345,29 +353,32 @@ func (p *CheckPool) Store(c *check.Check) error {
 
 }
 实现逻辑：
-以nonce为顺序，将支票插入到节点对应的check数组，如果已存在相同nonce的支票，则报错。
+先查看当前nonce是否越界
+如果nonce越界，则先使用nil填充池，直到nonce前的位置，然后把nocne添加到pool中
+如果nonce没有越界，并且check已经存在于池中，则报错返回
+如果nonce没越界，并且check不存在于池中，则将check直接放到nonce指定的位置
 ```
 
 ### 3.10 PaycheckPool*
 
 ```go
 type PaycheckPool struct {
-    Pool []*check.Paycheck 	
+    Data map[common.Address][]*check.Paycheck // nonce有序 	
 }
 
-// 在收到provider的验证确认后，将paycheck存储到池中
+// 将paycheck发送给节点用于支付，并在收到节点的验证确认后，将paycheck存储到池中，用于下一次支付计算支付金额时用。
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
 }
 实现逻辑：
-将paycheck以nonce大小为序存放到节点对应的paycheck队列中。
+同上
 
 // 获取当前正在支付的paycheck（队列中nonce最大的那个）
 func (p *PaycheckPool) GetCurrent(to common.Address) (*check.Paycheck, error) {
     
 }
 实现逻辑：
-从节点对应的paycheck列表中，取出nonce最大的那个(当前正用于支付)。
+直接返回len(slice)-1位置的paycheck，就是nonce最大的那个。
 
 疑问：
 
@@ -415,8 +426,10 @@ func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
 
 }
 实现逻辑：
-如果paycheck为空，则直接返回它的payvalue。
-否则，计算当前payvalue和paycheck数组末尾项的payvalue的差值并返回。
+先查看当前nonce是否超过了切片的长度，如果超过了，说明这是一张新用于支付的支票，需要将切片扩展到当前nonce的位置，并且将它存放到nonce所在位置，然后返回它的payvalue作为支付金额。
+如果nonce在切片当前长度范围内，则先看此nonce位置知否已经存在paycheck。
+如果不存在，则将它存放到当前nonce位置，并返回其payvalue值。
+如果已存在，则计算当前支票和nonce所在位置的paycheck的payvalue差值并返回。
 
 疑问：
 万一出现支票池数据丢失的情况怎么办？支票池没数据就无法正确计算支付金额了。
@@ -452,15 +465,15 @@ Data []*check.Paycheck 	//按照nonce有序
 
 }
 实现逻辑：
-如果paycheck数组为空，则直接append。
-否则，以nonce为顺序，将paycheck插入到数组中，如果有nonce相同的记录存在，则直接替换。
+同上。
 
 // 从支票池中取出能提现的支票中nonce最小的非current支票的paycheck（因为current支票是当前正在用于支付的paycheck）进行提现。
 (p *PaycheckPool ) GetNextPayable() (*check.Paycheck, error) {
 
 }
 实现逻辑：
-先查看合约中节点对应的nonce，然后在本地paycheck池中找出第一个比它大的支票，如果此支票不是current支票就正常返回它。
-如果没有合适的paycheck，就返回空
+// 先查看合约中节点对应的nonce，然后在本地paycheck池中找出第一个比它大的支票
+// 如果此支票不是current支票就正常返回它。
+// 如果没有合适的可提现paycheck，就返回空
 ```
 

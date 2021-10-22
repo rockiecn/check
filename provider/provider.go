@@ -160,7 +160,13 @@ type PaycheckPool struct {
 	Data []*check.Paycheck //按照nonce和payvalue有序
 }
 
-// 存储一张paycheck到池中
+// 先查看当前nonce是否越界
+// 如果nonce越界，则先使用nil填充池，直到nonce前的位置，然后把paycheck添加到pool中
+// 如果nonce没有越界，并且paycheck已经存在于池中，则先比较两个payvalue值
+// 如果payvalue值大于之前的，则使用新paycheck替换旧的
+// 否则，忽略此paycheck
+// 如果nonce没越界，并且check不存在于池中，则将paycheck直接放到nonce指定的位置
+// called when a paycheck is received by provider
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 	// get slice
 	s := p.Data
@@ -177,11 +183,14 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 		return nil
 	}
 
-	// if nonce is inside current pool, but check already exist
+	// if nonce is inside current pool, but paycheck already exist, substitude with new one
 	if s[pc.Check.Nonce] != nil {
-		return errors.New("check already exist")
+		if pc.PayValue.Cmp(s[pc.Check.Nonce].PayValue) > 0 {
+			s[pc.Check.Nonce] = pc
+			return nil
+		}
 	}
-	// check not exist, append it
+	// paycheck not exist, append it
 	s = append(s, pc)
 	p.Data = s
 	return nil
