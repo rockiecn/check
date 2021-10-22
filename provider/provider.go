@@ -162,24 +162,57 @@ type PaycheckPool struct {
 
 // 存储一张paycheck到池中
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
+	// get slice
+	s := p.Data
+
+	// if nonce is out of boundary, extend pool and put paycheck into right position
+	if pc.Check.Nonce+1 > uint64(len(s)) {
+		// padding nils
+		for n := uint64(len(s)); n < pc.Check.Nonce; n++ {
+			s = append(s, nil)
+		}
+		// right position after nils, and append check
+		s = append(s, pc)
+		p.Data = s
+		return nil
+	}
+
+	// if nonce is inside current pool, but check already exist
+	if s[pc.Check.Nonce] != nil {
+		return errors.New("check already exist")
+	}
+	// check not exist, append it
+	s = append(s, pc)
+	p.Data = s
 	return nil
 }
 
-// 找出用于下一次提现的paycheck，如果找到了则返回它，如果没找到则返回空
+// 先查看合约中节点对应的nonce，然后在本地paycheck池中找出第一个比它大的支票
+// 如果此支票不是current支票就正常返回它。
+// 如果没有合适的可提现paycheck，就返回空
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
+	// get contract nonce
 	contractNonce, err := comn.GetNonce(pro.ProviderAddr, pro.ProviderAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	paychecks := pro.Pool.Data
+	var lastNonce uint64
+	s := pro.Pool.Data
+	if len(s) != 0 {
+		lastNonce = uint64(len(s)) - 1
+	} else {
+		lastNonce = 0
+	}
 
-	for k, v := range paychecks {
-		if v.Check.Nonce > contractNonce {
-			return paychecks[k], nil
+	// from contract nonce, search for the first existing paycheck
+	for n := contractNonce + 1; n < lastNonce; n++ {
+		// found
+		if s[n] != nil {
+			return s[n], nil
 		}
 	}
 
-	// no available nonce exist in pool
-	return nil, errors.New("no paycheck in pool can withdraw")
+	// not found
+	return nil, errors.New("payable not found")
 }

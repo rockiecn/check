@@ -161,12 +161,7 @@ func (p *CheckPool) Store(chk *check.Check) error {
 	// get slice
 	s := p.Data[chk.ToAddr]
 
-	// check already exist
-	if s[chk.Nonce] != nil {
-		return errors.New("check already exist")
-	}
-
-	// put check into right position
+	// if nonce is out of boundary, extend pool and put check into right position
 	if chk.Nonce+1 > uint64(len(s)) {
 		// padding nils
 		for n := uint64(len(s)); n < chk.Nonce; n++ {
@@ -178,7 +173,14 @@ func (p *CheckPool) Store(chk *check.Check) error {
 		return nil
 	}
 
-	return errors.New("exception")
+	// if nonce is inside current pool, but check already exist
+	if s[chk.Nonce] != nil {
+		return errors.New("check already exist")
+	}
+	// check not exist, append it
+	s = append(s, chk)
+	p.Data[chk.ToAddr] = s
+	return nil
 }
 
 type PaycheckPool struct {
@@ -212,8 +214,9 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
 	}
 
-	// update old paycheck to new one
-	s[pc.Check.Nonce] = pc
+	// add new paycheck into pool
+	s = append(s, pc)
+	p.Data[pc.Check.ToAddr] = s
 	return nil
 }
 

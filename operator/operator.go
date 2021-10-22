@@ -320,12 +320,7 @@ func (p *CheckPool) Store(chk *check.Check) error {
 	// get slice
 	s := p.Data[chk.ToAddr]
 
-	// check already exist
-	if s[chk.Nonce] != nil {
-		return errors.New("check already exist")
-	}
-
-	// put check into right position
+	// if nonce is out of boundary, extend pool and put check into right position
 	if chk.Nonce+1 > uint64(len(s)) {
 		// padding nils
 		for n := uint64(len(s)); n < chk.Nonce; n++ {
@@ -337,7 +332,14 @@ func (p *CheckPool) Store(chk *check.Check) error {
 		return nil
 	}
 
-	return errors.New("exception")
+	// if nonce is inside current pool, but check already exist
+	if s[chk.Nonce] != nil {
+		return errors.New("check already exist")
+	}
+	// check not exist, append it
+	s = append(s, chk)
+	p.Data[chk.ToAddr] = s
+	return nil
 }
 
 // get a check according to order
