@@ -38,7 +38,7 @@ type IOperator interface {
 
 	GenCheck(o *order.Order) (*check.Check, error)
 	Mail(o *order.Order) error
-	Aggregate(data []byte) (batch *check.BatchCheck, err error)
+	Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 }
 
 // new operator, a contract is deployed.
@@ -317,28 +317,38 @@ type CheckPool struct {
 
 // called when a new check is generated.
 func (p *CheckPool) Store(chk *check.Check) error {
+	// get slice
 	s := p.Data[chk.ToAddr]
-	// extend cap
-	if chk.Nonce > uint64(len(s)) {
-		for i := uint64(0); i < chk.Nonce-uint64(len(s)); i++ {
-			s = append(s, nil)
-		}
 
-		s[chk.Nonce] = chk
-		return nil
-	}
-
-	//
+	// check already exist
 	if s[chk.Nonce] != nil {
 		return errors.New("check already exist")
 	}
-	s[chk.Nonce] = chk
-	return nil
 
+	// put check into right position
+	if chk.Nonce+1 > uint64(len(s)) {
+		// padding nils
+		for n := uint64(len(s)); n < chk.Nonce; n++ {
+			s = append(s, nil)
+		}
+		// right position after nils, and append check
+		s = append(s, chk)
+		p.Data[chk.ToAddr] = s
+		return nil
+	}
+
+	return errors.New("exception")
 }
 
 // get a check according to order
 func (p *CheckPool) GetCheck(o *order.Order) (*check.Check, error) {
 
-	return nil, nil
+	if o.Nonce > uint64(len(p.Data[o.To])) {
+		return nil, errors.New("nonce exceed check storage boundary")
+	}
+
+	if p.Data[o.To][o.Nonce] == nil {
+		return nil, errors.New("no check from this order")
+	}
+	return p.Data[o.To][o.Nonce], nil
 }

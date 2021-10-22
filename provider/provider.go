@@ -86,11 +86,33 @@ func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err erro
 	return tx, nil
 }
 
+// 先查看当前nonce是否超过了切片的长度
+// 如果超过了，说明这是一张新用于支付的支票，需要将切片扩展到当前nonce的长度，并且将它存放到nonce所在位置，然后返回它的payvalue作为支付金额。
+// 如果nonce在切片当前长度范围内，则先看此nonce位置知否已经存在paycheck。
+// 如果已存在，则计算当前支票和nonce所在位置的paycheck的payvalue差值并返回。
+// 如果不存在，则将它存放到当前nonce位置，并返回其payvalue值。
 // calculate the actual money the paycheck pays
-func (pro *Provider) CalcPay(pchk *check.Paycheck) (*big.Int, error) {
-	//如果paycheck为空，则直接返回它的payvalue。
-	//否则，计算当前payvalue和paycheck数组末尾项的payvalue的差值并返回。
-	return nil, nil
+func (pro *Provider) CalcPay(pc *check.Paycheck) (*big.Int, error) {
+	s := pro.Pool.Data
+	// put check into right position
+	if pc.Check.Nonce+1 > uint64(len(s)) {
+		// padding nils
+		for n := uint64(len(s)); n < pc.Check.Nonce; n++ {
+			s = append(s, nil)
+		}
+		// right position after nils, and append it
+		s = append(s, pc)
+		pro.Pool.Data = s
+		return pc.PayValue, nil
+	}
+
+	if s[pc.Check.Nonce] != nil {
+		pay := pc.PayValue.Sub(pc.PayValue, s[pc.Check.Nonce].PayValue)
+		return pay, nil
+	}
+
+	s[pc.Check.Nonce] = pc
+	return pc.PayValue, nil
 }
 
 func (pro *Provider) PreStore(pchk *check.Paycheck, dataValue *big.Int) (bool, error) {

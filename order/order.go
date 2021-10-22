@@ -20,6 +20,8 @@ type Order struct {
 	Email string         // 接收支票的邮件地址
 	Paid  bool           // 标记是否已付款
 
+	Nonce uint64 // 支票nonce，申请的时候无法填入，由运营商在生成支票后补填，并存储到订单池中
+
 	Sig string // 运营商的签名
 }
 
