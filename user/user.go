@@ -46,43 +46,48 @@ func (user *User) Pay(price *big.Int) error {
 	return nil
 }
 
-// 如果paycheck队列为空，表示没有支票被用过，所有的check都能支付，则直接取出check池的第一张支票返回。
-// 如果paycheck队列不为空，则在paycheck队列中取出末尾项的nonce（队列中的最大nonce）
-// 然后在check池中从nonce+1开始向后找，一直找到存在支票的数据项返回。
-// 如果一直找到切片末尾都是空值，表示当前已无可用支票，返回空。
+// 如果paycheck队列为空，表示所有的check都能支付，则直接取出check池的第一张支票返回（如果有的话）。
+// 如果paycheck队列不为空，则在paycheck队列中取出尾项的nonce（队列中最大，命名为maxNonce）
+// 然后在check队列中从maxNonce+1开始向后找，返回找到的第一张支票
+// 如果直到队列最后都没找到一张支票，表示已无可用支票，返回空
 // get a check that has not been used yet
 func (user *User) GetNew(to common.Address) (*check.Check, error) {
 
 	sc := user.PoolA.Data[to]
 	sp := user.PoolB.Data[to]
 
+	// check pool is empty
+	if len(sc) == 0 {
+		return nil, errors.New("check pool is empty")
+	}
+
+	// if paycheck pool is empty, return the first check
+	if len(sp) == 0 {
+		if sc[0] != nil {
+			return sc[0], nil
+		} else {
+			return nil, errors.New("first check is nil")
+		}
+	}
+
+	// here we can sure len(sc) and len(sp) not 0
 	maxCNonce := len(sc) - 1
 	maxPCNonce := len(sp) - 1
 
-	// no check in pool
-	if len(sc) == 0 {
-		return nil, errors.New("no check in pool")
-	}
-
-	// if no paycheck exist, return the first check
-	if len(sp) == 0 {
-		return sc[1], nil
-	}
-
-	// last paycheck's nonce
+	// last check is used for paycheck
 	if maxCNonce <= maxPCNonce {
-		return nil, errors.New("no usable check left, need buy more")
+		return nil, errors.New("no usable check in pool")
 	}
 
-	// search for an usable check in pool
+	// search for an usable check in check pool
 	for i := maxPCNonce + 1; i <= maxCNonce; i++ {
 		if sc[i] != nil {
 			return sc[i], nil
 		}
 	}
 
-	// no check found
-	return nil, errors.New("no usable check in check pool")
+	// no check found in check pool
+	return nil, errors.New("check nonce larger than paycheck nonce, but no check is found")
 }
 
 // generate Paycheck based on check, sig of Paycheck is updated
@@ -97,15 +102,7 @@ func (user *User) GenPaycheck(chk *check.Check, payValue *big.Int) (*check.Paych
 		return nil, errors.New("sign payckeck failed")
 	}
 
-	// store paycheck into pool
-	user.PoolB.Store(pchk)
-
 	return pchk, nil
-}
-
-func (user *User) SendPaycheck(to common.Address, pc *check.Paycheck) error {
-	//将paycheck发送给provider节点，以支付本次数据块的费用。
-	return nil
 }
 
 // 验证支票签名(operator)。
@@ -122,31 +119,28 @@ func (user *User) PreStore(chk *check.Check) (bool, error) {
 		return false, err
 	}
 	if !ok {
-		return false, errors.New("check signature verify failed")
+		return false, nil
 	}
 
 	// from = user
 	if chk.FromAddr != user.UserAddr {
-		return false, errors.New("check's from address not user")
+		return false, nil
 	}
 
 	// nonce must bigger than contract nonce
 	contractNonce, err := comn.QueryNonce(user.UserAddr, chk.ContractAddr, chk.ToAddr)
 	if err != nil {
-		return false, errors.New("query nonce error")
+		return false, err
 	}
 	if chk.Nonce <= contractNonce {
-		return false, errors.New("check nonce must larger than contract nonce")
+		return false, nil
 	}
 
 	// check must not exist in pool
 	sc := user.PoolA.Data[chk.ToAddr]
 	if sc[chk.Nonce] != nil {
-		return false, errors.New("check already exist in check pool")
+		return false, nil
 	}
-
-	// store check into pool
-	user.PoolA.Store(chk)
 
 	return true, nil
 }
@@ -162,24 +156,24 @@ func (p *CheckPool) Store(chk *check.Check) error {
 	s := p.Data[chk.ToAddr]
 
 	// if nonce is out of boundary, extend pool and put check into right position
-	if chk.Nonce+1 > uint64(len(s)) {
+	if chk.Nonce >= uint64(len(s)) {
 		// padding nils
-		for n := uint64(len(s)); n < chk.Nonce; n++ {
+		pad := chk.Nonce - uint64(len(s))
+		for i := uint64(0); i < pad; i++ {
 			s = append(s, nil)
 		}
 		// right position after nils, and append check
-		s = append(s, chk)
-		p.Data[chk.ToAddr] = s
-		return nil
+		if chk.Nonce == uint64(len(s)) {
+			s = append(s, chk)
+			p.Data[chk.ToAddr] = s
+			return nil
+		} else {
+			return errors.New("bad check nonce")
+		}
 	}
 
-	// if nonce is inside current pool, but check already exist
-	if s[chk.Nonce] != nil {
-		return errors.New("check already exist")
-	}
-	// check not exist, append it
-	s = append(s, chk)
-	p.Data[chk.ToAddr] = s
+	// check in boundary, put check into nonce position
+	s[chk.Nonce] = chk
 	return nil
 }
 
@@ -188,40 +182,41 @@ type PaycheckPool struct {
 	Data map[common.Address][]*check.Paycheck //按照nonce有序
 }
 
-// 如果paycheck池为空，则直接将paycheck添加到池中。
-// 如果此nonce的paycheck已经存在，则比较payvalue以后，替换。
-// 如果此nonce的paycheck不存在，则直接放到nonce对应的切片位置。
+// 如果nonce越界（使用新check支付），则先使用nil值填充队列，直到nonce所在的位置，然后把paycheck放到这里
+// 如果nonce没有越界（使用current支票支付），则直接用它替换nonce位置的paycheck
 func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 
 	// get slice
 	s := p.Data[pc.Check.ToAddr]
 
-	// if paycheck pool is nil, append it
-	if len(s) == 0 {
-		s = append(s, pc)
-		p.Data[pc.Check.ToAddr] = s
-		return nil
-	}
-
-	// check already exist
-	if s[pc.Check.Nonce] != nil {
-		if (pc.PayValue.Cmp(s[pc.Check.Nonce].PayValue)) <= 0 {
-			return errors.New("new payvalue must larger than old one")
+	// if nonce is out of boundary, extend pool and put check into right position
+	if pc.Check.Nonce >= uint64(len(s)) {
+		// padding nils
+		pad := pc.Check.Nonce - uint64(len(s))
+		for i := uint64(0); i < pad; i++ {
+			s = append(s, nil)
 		}
-		// update old paycheck to new one
-		s[pc.Check.Nonce] = pc
-		return nil
-
+		// right position to append check
+		if pc.Check.Nonce == uint64(len(s)) {
+			s = append(s, pc)
+			p.Data[pc.Check.ToAddr] = s
+			return nil
+		} else {
+			return errors.New("bad check nonce")
+		}
 	}
 
-	// add new paycheck into pool
-	s = append(s, pc)
-	p.Data[pc.Check.ToAddr] = s
+	// check in boundary, put check into nonce position
+	s[pc.Check.Nonce] = pc
 	return nil
 }
 
 // get the last paycheck, which has the biggest nonce
 func (p *PaycheckPool) GetCurrent(to common.Address) (*check.Paycheck, error) {
 	s := p.Data[to]
-	return s[len(s)-1], nil
+	if len(s) == 0 {
+		return nil, nil
+	} else {
+		return s[len(s)-1], nil
+	}
 }

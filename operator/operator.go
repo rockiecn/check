@@ -192,11 +192,7 @@ func (op *Operator) GenCheck(o *order.Order) (*check.Check, error) {
 	var newNonce uint64
 
 	checks := op.Pool.Data[o.To]
-	if len(checks) == 0 {
-		newNonce = 1
-	} else {
-		newNonce = checks[len(checks)-1].Nonce + 1
-	}
+	newNonce = uint64(len(checks))
 
 	chk := &check.Check{
 		Value:        o.Value,
@@ -214,7 +210,7 @@ func (op *Operator) GenCheck(o *order.Order) (*check.Check, error) {
 		return nil, err
 	}
 
-	// add new nonce into map
+	// update nonce
 	op.Nonces[o.To] = newNonce
 
 	return chk, nil
@@ -233,21 +229,12 @@ type SerialData struct {
 // mutli paycheck to a bacthCheck
 func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error) {
 
-	/*
-		SD := &pb.SerializeData{}
-		// parse to pb data
-		if err := proto.Unmarshal(data, SD); err != nil {
-			log.Println("Failed to parse SerialData:", err)
-			return nil, err
-		}
-	*/
-
 	// no data
 	if len(wrap.Data) == 0 {
 		return nil, errors.New("no paycheck in data")
 	}
 
-	// initialize min and max
+	// initialize
 	minNonce := wrap.Data[0].Check.Nonce
 	maxNonce := wrap.Data[0].Check.Nonce
 	totalPayvalue := new(big.Int)
@@ -273,10 +260,18 @@ func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 			return nil, errors.New("signature verify failed")
 		}
 
-		// payvalue
+		// verify payvalue
 		if pc.PayValue.Cmp(pc.Check.Value) > 0 {
 			return nil, errors.New("payvalue exceed value")
 		}
+
+		// to address must be same
+		if common.HexToAddress(v.Check.To) != toAddr {
+			return nil, errors.New("to address not identical")
+		}
+
+		// accumulate payvalue
+		totalPayvalue = totalPayvalue.Add(totalPayvalue, pc.PayValue)
 
 		// update minNonce, maxNonce
 		if pc.Check.Nonce < minNonce {
@@ -286,13 +281,6 @@ func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 			maxNonce = v.Check.Nonce
 		}
 
-		// accumulate payvalue
-		totalPayvalue = totalPayvalue.Add(totalPayvalue, pc.PayValue)
-
-		// to address must be same
-		if common.HexToAddress(v.Check.To) != toAddr {
-			return nil, errors.New("to address not identical")
-		}
 	}
 
 	// construct batch check
@@ -315,46 +303,47 @@ type CheckPool struct {
 	Data map[common.Address][]*check.Check
 }
 
-// 先查看当前nonce是否越界
-// 如果nonce越界，则先使用nil填充池，直到nonce前的位置，然后把nocne添加到pool中
-// 如果nonce没有越界，并且check已经存在于池中，则报错返回
-// 如果nonce没越界，并且check不存在于池中，则将check直接放到nonce指定的位置
-// called when a new check is generated.
+// 如果nonce越界，则先使用nil填充池，直到nonce当前位置，然后把支票放置到nonce指定位置
+// 如果nonce没越界，并且此nonce位置已存在支票，报错返回
+// 如果nonce没越界，并且此nonce位置不存在支票，则将check直接放到nonce指定的位置
 func (p *CheckPool) Store(chk *check.Check) error {
 	// get slice
 	s := p.Data[chk.ToAddr]
 
 	// if nonce is out of boundary, extend pool and put check into right position
-	if chk.Nonce+1 > uint64(len(s)) {
+	if chk.Nonce >= uint64(len(s)) {
 		// padding nils
-		for n := uint64(len(s)); n < chk.Nonce; n++ {
+		pad := chk.Nonce - uint64(len(s))
+		for i := uint64(0); i < pad; i++ {
 			s = append(s, nil)
 		}
-		// right position after nils, and append check
-		s = append(s, chk)
-		p.Data[chk.ToAddr] = s
-		return nil
+		// right position to append check
+		if chk.Nonce == uint64(len(s)) {
+			s = append(s, chk)
+			p.Data[chk.ToAddr] = s
+			return nil
+		} else {
+			return errors.New("bad check nonce")
+		}
 	}
 
-	// if nonce is inside current pool, but check already exist
-	if s[chk.Nonce] != nil {
-		return errors.New("check already exist")
-	}
-	// check not exist, append it
-	s = append(s, chk)
-	p.Data[chk.ToAddr] = s
+	// check in boundary, put check into nonce position
+	s[chk.Nonce] = chk
+
 	return nil
 }
 
 // get a check according to order
 func (p *CheckPool) GetCheck(o *order.Order) (*check.Check, error) {
 
-	if o.Nonce > uint64(len(p.Data[o.To])) {
+	// nonce out of boundary
+	if o.Nonce >= uint64(len(p.Data[o.To])) {
 		return nil, errors.New("nonce exceed check storage boundary")
 	}
 
 	if p.Data[o.To][o.Nonce] == nil {
-		return nil, errors.New("no check from this order")
+		return nil, errors.New("no check at order's nonce")
+	} else {
+		return p.Data[o.To][o.Nonce], nil
 	}
-	return p.Data[o.To][o.Nonce], nil
 }

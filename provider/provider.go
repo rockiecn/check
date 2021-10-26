@@ -26,7 +26,6 @@ type Provider struct {
 type IProvider interface {
 	// send withdraw transaction to contract
 	SendTx(pc *check.Paycheck) (tx *types.Transaction, err error)
-	CalcPay(pchk *check.Paycheck) (*big.Int, error)
 	PreStore(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
 }
 
@@ -86,74 +85,64 @@ func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err erro
 	return tx, nil
 }
 
-// 先查看当前nonce是否超过了切片的长度
-// 如果超过了，说明这是一张新用于支付的支票，需要将切片扩展到当前nonce的长度，并且将它存放到nonce所在位置，然后返回它的payvalue作为支付金额。
-// 如果nonce在切片当前长度范围内，则先看此nonce位置知否已经存在paycheck。
-// 如果已存在，则计算当前支票和nonce所在位置的paycheck的payvalue差值并返回。
-// 如果不存在，则将它存放到当前nonce位置，并返回其payvalue值。
-// calculate the actual money the paycheck pays
-func (pro *Provider) CalcPay(pc *check.Paycheck) (*big.Int, error) {
-	s := pro.Pool.Data
-	// put check into right position
-	if pc.Check.Nonce+1 > uint64(len(s)) {
-		// padding nils
-		for n := uint64(len(s)); n < pc.Check.Nonce; n++ {
-			s = append(s, nil)
-		}
-		// right position after nils, and append it
-		s = append(s, pc)
-		pro.Pool.Data = s
-		return pc.PayValue, nil
-	}
-
-	if s[pc.Check.Nonce] != nil {
-		pay := pc.PayValue.Sub(pc.PayValue, s[pc.Check.Nonce].PayValue)
-		return pay, nil
-	}
-
-	s[pc.Check.Nonce] = pc
-	return pc.PayValue, nil
-}
-
-func (pro *Provider) PreStore(pchk *check.Paycheck, dataValue *big.Int) (bool, error) {
+// 验证一张paycheck的合法性。
+// 首先验证两个签名是否正确。
+// 然后是value值是否大于payvalue值。
+// 然后是to地址跟provider地址是否相同。
+// nonce值是否大于合约中to地址的当前nonce（决定了它是否能够提现）。
+// nonce值是否大于txNonce的值（决定了它是否能够提现）。
+// 从paycheck池中取出尾项的nonce（maxNonce）
+// 如果支票的nonce大于maxNonce，说明此paycheck是使用新支票支付的，直接使用其payvalue值跟size的价值相比较，看是否相等
+// 如果支票的nonce等于maxNonce，说明此paycheck是使用current支票进行支付的，计算payvalue的差值，跟size的价值相比较，看是否相等
+// verify before store paycheck into pool
+func (pro *Provider) PreStore(pchk *check.Paycheck, size *big.Int) (bool, error) {
 
 	// value should no less than payvalue
 	if pchk.Check.Value.Cmp(pchk.PayValue) < 0 {
-		return false, errors.New("value less than payvalue")
+		return false, nil
 	}
 
 	// check nonce shuould larger than contract nonce
 	contractNonce, err := comn.QueryNonce(pro.ProviderAddr, pchk.Check.ContractAddr, pro.ProviderAddr)
 	if err != nil {
-		return false, errors.New("query contract nonce failed")
+		return false, nil
 	}
 	if pchk.Check.Nonce <= contractNonce {
-		return false, errors.New("check nonce too small, cannot withdraw")
+		return false, nil
 	}
 
 	// to address must be provider
 	if pchk.Check.ToAddr != pro.ProviderAddr {
-		return false, errors.New("check's to address not provider")
+		return false, nil
 	}
 
 	// check nonce should larger than TxNonce(last withdrawed nonce)
 	if pchk.Check.Nonce <= pro.TxNonce {
-		return false, errors.New("check nonce not larger than TxNonce")
+		return false, nil
 	}
 
-	//
-	pay, err := pro.CalcPay(pchk)
-	if err != nil {
-		return false, errors.New("call CalcPay failed")
+	s := pro.Pool.Data
+	var maxNonce uint64
+	if len(s) == 0 {
+		maxNonce = 0
 	}
-	if pay != dataValue {
-		return false, errors.New("pay amount not equal dataValue")
+	maxNonce = uint64(len(s)) - 1
+
+	// new check paying
+	if pchk.Check.Nonce > maxNonce {
+		if pchk.PayValue.Cmp(comn.BlockValue(size, 1)) == 0 {
+			return true, nil
+		}
+	}
+	// current check paying
+	if pchk.Check.Nonce == maxNonce {
+		pay := pchk.PayValue.Sub(pchk.PayValue, s[maxNonce].PayValue)
+		if pay.Cmp(comn.BlockValue(size, 1)) == 0 {
+			return true, nil
+		}
 	}
 
-	// store paycheck into pool
-	pro.Pool.Store(pchk)
-
-	return true, nil
+	return false, nil
 }
 
 type PaycheckPool struct {
@@ -196,9 +185,8 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 	return nil
 }
 
-// 先查看合约中节点对应的nonce，然后在本地paycheck池中找出第一个比它大的支票
-// 如果此支票不是current支票就正常返回它。
-// 如果没有合适的可提现paycheck，就返回空
+// 先查看合约中节点对应的nonce，然后在本地paycheck池中从nonce+1开始找，一直找到一张存在的paycheck
+// 如果到最后都没有找到一张paycheck，或者找到的paycheck是current支票，则返回nil
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 	// get contract nonce
 	contractNonce, err := comn.GetNonce(pro.ProviderAddr, pro.ProviderAddr)
@@ -208,13 +196,16 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 
 	var lastNonce uint64
 	s := pro.Pool.Data
-	if len(s) != 0 {
-		lastNonce = uint64(len(s)) - 1
-	} else {
-		lastNonce = 0
+
+	// paycheck pool is empty
+	if len(s) == 0 {
+		return nil, errors.New("paycheck pool is emtpy")
 	}
 
-	// from contract nonce, search for the first existing paycheck
+	// last nonce is len(s)-1
+	lastNonce = uint64(len(s)) - 1
+
+	// from contractNonce+1, search for the first existing paycheck before lastNonce
 	for n := contractNonce + 1; n < lastNonce; n++ {
 		// found
 		if s[n] != nil {
@@ -223,5 +214,5 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 	}
 
 	// not found
-	return nil, errors.New("payable not found")
+	return nil, errors.New("no payable paycheck found")
 }
