@@ -47,17 +47,19 @@ func New(sk string, token string) (IOperator, *types.Transaction, error) {
 		OpSK:   sk,
 		OpAddr: comn.KeyToAddr(sk),
 		Nonces: make(map[common.Address]uint64),
-		//Recorder: NewRec(),
 	}
 
-	// give 20 eth to new contract
-	tx, addr, err := op.DeployContract(comn.String2BigInt("20000000000000000000"))
-	if err != nil {
-		return nil, nil, err
-	}
-	op.ContractAddr = addr
+	/*
+		// give 20 eth to new contract
+		tx, addr, err := op.DeployContract(comn.String2BigInt("20000000000000000000"))
+		if err != nil {
+			return nil, nil, err
+		}
+		op.ContractAddr = addr
 
-	return op, tx, nil
+		return op, tx, nil
+	*/
+	return op, nil, nil
 }
 
 // value: money to new contract
@@ -242,7 +244,8 @@ func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 	for _, v := range wrap.Data {
 		// contruct paycheck from pb data
 		pc := &check.Paycheck{}
-		pc.Check.Value, _ = new(big.Int).SetString(v.Check.Value, 10)
+
+		pc.Check.Value = comn.String2BigInt(v.Check.Value)
 		pc.Check.TokenAddr = common.HexToAddress(v.Check.Token)
 		pc.Check.Nonce = v.Check.Nonce
 		pc.Check.FromAddr = common.HexToAddress(v.Check.From)
@@ -250,14 +253,17 @@ func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 		pc.Check.OpAddr = common.HexToAddress(v.Check.Op)
 		pc.Check.ContractAddr = common.HexToAddress(v.Check.Contract)
 		pc.Check.CheckSig = v.Check.ChkSig
-		pc.PayValue, _ = new(big.Int).SetString(v.Payvalue, 10)
+		pc.PayValue = comn.String2BigInt(v.Payvalue)
 		pc.PaycheckSig = v.PayCheckSig
 
+		v1, _ := pc.Check.Verify()
+		if !v1 {
+			return nil, errors.New("check sig verify failed")
+		}
 		// verify both signs
-		v1, _ := pc.Verify()
-		v2, _ := pc.Check.Verify()
-		if !v1 || !v2 {
-			return nil, errors.New("signature verify failed")
+		v2, _ := pc.Verify()
+		if !v2 {
+			return nil, errors.New("paycheck sig verify failed")
 		}
 
 		// verify payvalue
@@ -280,11 +286,11 @@ func (op *Operator) Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 		if pc.Check.Nonce > maxNonce {
 			maxNonce = v.Check.Nonce
 		}
-
 	}
 
 	// construct batch check
 	batch := &check.BatchCheck{}
+	batch.OpAddr = op.OpAddr
 	batch.ToAddr = toAddr
 	batch.BatchValue = totalPayvalue
 	batch.MinNonce = minNonce
