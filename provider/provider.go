@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/cash"
 	"github.com/rockiecn/check/check"
-	comn "github.com/rockiecn/check/common"
+	"github.com/rockiecn/check/internal"
 )
 
 type Provider struct {
@@ -32,7 +32,7 @@ type IProvider interface {
 func New(sk string) (IProvider, error) {
 	pro := &Provider{
 		ProviderSK:   sk,
-		ProviderAddr: comn.KeyToAddr(sk),
+		ProviderAddr: internal.KeyToAddr(sk),
 		//Recorder:     NewRec(),
 		Host: "http://localhost:8545",
 	}
@@ -43,13 +43,13 @@ func New(sk string) (IProvider, error) {
 // CallApplyCheque - send tx to contract to call apply cheque method.
 func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
-	ethClient, err := comn.GetClient(pro.Host)
+	ethClient, err := internal.GetClient(pro.Host)
 	if err != nil {
 		return nil, errors.New("failed to dial geth")
 	}
 	defer ethClient.Close()
 
-	auth, err := comn.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
+	auth, err := internal.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
 	if err != nil {
 		return nil, errors.New("make auth failed")
 	}
@@ -103,7 +103,7 @@ func (pro *Provider) PreStore(pchk *check.Paycheck, size *big.Int) (bool, error)
 	}
 
 	// check nonce shuould larger than contract nonce
-	contractNonce, err := comn.QueryNonce(pro.ProviderAddr, pchk.Check.ContractAddr, pro.ProviderAddr)
+	contractNonce, err := internal.QueryNonce(pro.ProviderAddr, pchk.Check.ContractAddr, pro.ProviderAddr)
 	if err != nil {
 		return false, nil
 	}
@@ -130,14 +130,14 @@ func (pro *Provider) PreStore(pchk *check.Paycheck, size *big.Int) (bool, error)
 
 	// new check paying
 	if pchk.Check.Nonce > maxNonce {
-		if pchk.PayValue.Cmp(comn.BlockValue(size, 1)) == 0 {
+		if pchk.PayValue.Cmp(internal.BlockValue(size, 1)) == 0 {
 			return true, nil
 		}
 	}
 	// current check paying
 	if pchk.Check.Nonce == maxNonce {
 		pay := pchk.PayValue.Sub(pchk.PayValue, s[maxNonce].PayValue)
-		if pay.Cmp(comn.BlockValue(size, 1)) == 0 {
+		if pay.Cmp(internal.BlockValue(size, 1)) == 0 {
 			return true, nil
 		}
 	}
@@ -189,7 +189,7 @@ func (p *PaycheckPool) Store(pc *check.Paycheck) error {
 // 如果到最后都没有找到一张paycheck，或者找到的paycheck是current支票，则返回nil
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 	// get contract nonce
-	contractNonce, err := comn.GetNonce(pro.ProviderAddr, pro.ProviderAddr)
+	contractNonce, err := internal.GetNonce(pro.ProviderAddr, pro.ProviderAddr)
 	if err != nil {
 		return nil, err
 	}

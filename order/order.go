@@ -1,46 +1,75 @@
 package order
 
 import (
+	"errors"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rockiecn/check/check"
 )
 
 type Order struct {
-	ID    uint64         // 订单ID
-	Value *big.Int       // 货币数量
+	ID uint64 // 订单ID
+
 	Token common.Address // 货币类型
-	Fee   uint64         // 应付金额
+	Value *big.Int       // 货币数量
 	From  common.Address // user地址
 	To    common.Address // provider地址
-	Time  time.Time      // 订单提交时间
-	Name  string         // 购买人姓名
-	Tel   string         // 购买人联系方式
-	Email string         // 接收支票的邮件地址
-	Paid  bool           // 标记是否已付款
 
-	Nonce uint64 // 支票nonce，申请的时候无法填入，由运营商在生成支票后补填，并存储到订单池中
+	Time time.Time // 订单提交时间
 
-	Sig string // 运营商的签名
+	Name  string // 购买人姓名
+	Tel   string // 购买人联系方式
+	Email string // 接收支票的邮件地址
+
+	State uint8 // 标记是否已付款; 0,1 paid,2 check
+
+	Check *check.Check // 根据此订单生成的支票
 }
 
-type OrderPool struct {
-	// user -> \[\]*Order
-	Data map[common.Address][]*Order
+type OrderMgr struct {
+	ID   uint64            // ID used for next order
+	Pool map[uint64]*Order // id -> order
 }
 
-func (pool *OrderPool) Store(o *Order) error {
-	//将一张订单存储到每个user各自的队列下面，以订单ID为排列顺序。
-	return nil
+func (odrMgr *OrderMgr) CurrentID() uint64 {
+	return odrMgr.ID
 }
 
-func (pool *OrderPool) Get(user common.Address, ID uint64) (*Order, error) {
-	//根据user地址和订单ID来从订单池获取一张订单
-	return nil, nil
+func (odrMgr *OrderMgr) UpdateID() {
+	odrMgr.ID++
 }
 
-func (pool *OrderPool) Pay(user common.Address, ID uint64) (*Order, error) {
-	//在用户支付完成后，使用订单的user和ID信息来调用，以修改此订单的支付状态paid为true。
-	return nil, nil
+func (odrMgr *OrderMgr) GetOrderByID(oid uint64) *Order {
+	return odrMgr.Pool[oid]
+}
+
+func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
+	if odr != nil {
+		odrMgr.Pool[odr.ID] = odr
+		return nil
+	}
+	return errors.New("order is nil")
+}
+
+func (odrMgr *OrderMgr) GetCheckByID(oid uint64) *check.Check {
+	return odrMgr.GetOrderByID(oid).Check
+}
+func (odrMgr *OrderMgr) SetCheckByID(oid uint64, chk *check.Check) {
+	odrMgr.GetOrderByID(oid).Check = chk
+}
+
+func (odrMgr *OrderMgr) GetStateByID(oid uint64) uint8 {
+	return odrMgr.GetOrderByID(oid).State
+}
+
+func (odrMgr *OrderMgr) SetStateByID(oid uint64, s uint8) {
+	odrMgr.GetOrderByID(oid).State = s
+}
+
+func (odrMgr *OrderMgr) UserPay(oid uint64) {
+	// paid
+	// check
+	// add check to om.chks
 }
