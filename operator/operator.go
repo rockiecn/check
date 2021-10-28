@@ -30,8 +30,8 @@ type IOperator interface {
 	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
 	// query current balance of contract
 	QueryBalance() (*big.Int, error)
-	// query contract nonce of a provider
-	QueryNonce(to common.Address) (uint64, error)
+	// get contract nonce of a provider
+	GetNonce(to common.Address) (uint64, error)
 	// give money to contract
 	Deposit(value *big.Int) (*types.Transaction, error)
 
@@ -151,9 +151,9 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 	return bal, nil
 }
 
-// query nonce of a given provider
-func (op *Operator) QueryNonce(to common.Address) (uint64, error) {
-	nonce, err := internal.QueryNonce(op.OpAddr, op.ContractAddr, to)
+// get nonce of a given provider
+func (op *Operator) GetNonce(to common.Address) (uint64, error) {
+	nonce, err := internal.GetNonce(op.ContractAddr, to)
 	return nonce, err
 }
 
