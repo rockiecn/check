@@ -16,8 +16,6 @@ import (
 	"github.com/rockiecn/check/order"
 )
 
-//type Checks map[uint64]*check.Check
-
 type Operator struct {
 	OpSK         string
 	OpAddr       common.Address
@@ -26,8 +24,6 @@ type Operator struct {
 	Nonces map[common.Address]uint64
 
 	OdrMgr *order.OrderMgr
-
-	//Pool map[common.Address]Checks
 }
 
 type IOperator interface {
@@ -41,8 +37,6 @@ type IOperator interface {
 
 	// generate a check from order id
 	GenCheck(oid uint64) (*check.Check, error)
-
-	//Aggregate(wrap *pb.SerializeData) (*check.BatchCheck, error)
 }
 
 // new operator, a contract is deployed.
