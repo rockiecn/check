@@ -20,11 +20,8 @@ type Operator struct {
 	OpSK         string
 	OpAddr       common.Address
 	ContractAddr common.Address
-	// to -> nonce
-	Nonces map[common.Address]uint64
-
-	// order manager
-	OdrMgr *OrderMgr
+	Nonces       map[common.Address]uint64
+	OdrMgr       *OrderMgr
 }
 
 type IOperator interface {
