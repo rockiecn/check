@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rockiecn/check/internal"
+	"github.com/rockiecn/check/internal/utils"
 )
 
 type Check struct {
@@ -77,7 +77,7 @@ func (chk *Check) Serialize() []byte {
 
 	valuePad32 := common.LeftPadBytes(chk.Value.Bytes(), 32)
 	tokenBytes := chk.TokenAddr.Bytes()
-	noncePad8 := common.LeftPadBytes(internal.Uint64ToBytes(chk.Nonce), 8)
+	noncePad8 := common.LeftPadBytes(utils.Uint64ToBytes(chk.Nonce), 8)
 	fromBytes := chk.FromAddr.Bytes()
 	toBytes := chk.ToAddr.Bytes()
 	operatorBytes := chk.OpAddr.Bytes()
@@ -150,7 +150,7 @@ func (pchk *Paycheck) Verify() (bool, error) {
 func (pchk *Paycheck) Serialize() []byte {
 
 	valuePad32 := common.LeftPadBytes(pchk.Check.Value.Bytes(), 32)
-	noncePad8 := common.LeftPadBytes(internal.Uint64ToBytes(pchk.Check.Nonce), 8)
+	noncePad8 := common.LeftPadBytes(utils.Uint64ToBytes(pchk.Check.Nonce), 8)
 	payvaluePad32 := common.LeftPadBytes(pchk.PayValue.Bytes(), 32)
 	tokenBytes := pchk.Check.TokenAddr.Bytes()
 	fromBytes := pchk.Check.FromAddr.Bytes()
@@ -229,8 +229,8 @@ func (bc *BatchCheck) Serialize() []byte {
 	opBytes := bc.OpAddr.Bytes()
 	toBytes := bc.ToAddr.Bytes()
 	valuePad32 := common.LeftPadBytes(bc.BatchValue.Bytes(), 32)
-	minPad8 := common.LeftPadBytes(internal.Uint64ToBytes(bc.MinNonce), 8)
-	maxPad8 := common.LeftPadBytes(internal.Uint64ToBytes(bc.MaxNonce), 8)
+	minPad8 := common.LeftPadBytes(utils.Uint64ToBytes(bc.MinNonce), 8)
+	maxPad8 := common.LeftPadBytes(utils.Uint64ToBytes(bc.MaxNonce), 8)
 
 	// calc hash
 	hash := crypto.Keccak256(

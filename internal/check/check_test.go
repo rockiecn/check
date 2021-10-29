@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rockiecn/check/internal"
+	internal "github.com/rockiecn/check/internal/utils"
 )
 
 func TestCheckSign(t *testing.T) {

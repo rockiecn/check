@@ -1,4 +1,4 @@
-package internal
+package utils
 
 import (
 	"crypto/ecdsa"
@@ -10,7 +10,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/rockiecn/check/cash"
+	"github.com/rockiecn/check/internal/cash"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"

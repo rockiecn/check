@@ -1,6 +1,6 @@
-/*
 package operator
 
+/*
 import (
 	"errors"
 	"testing"

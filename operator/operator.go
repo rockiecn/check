@@ -5,16 +5,81 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rockiecn/check/cash"
-	"github.com/rockiecn/check/check"
-	"github.com/rockiecn/check/internal"
-	"github.com/rockiecn/check/order"
+	"github.com/rockiecn/check/internal/cash"
+	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/utils"
 )
+
+type Order struct {
+	ID uint64 // 订单ID
+
+	Token common.Address // 货币类型
+	Value *big.Int       // 货币数量
+	From  common.Address // user地址
+	To    common.Address // provider地址
+
+	Time time.Time // 订单提交时间
+
+	Name  string // 购买人姓名
+	Tel   string // 购买人联系方式
+	Email string // 接收支票的邮件地址
+
+	State uint8 // 标记是否已付款; 0,1 paid,2 check
+
+	Check *check.Check // 根据此订单生成的支票
+}
+
+type OrderMgr struct {
+	ID   uint64            // ID used for next order
+	Pool map[uint64]*Order // id -> order
+}
+
+func (odrMgr *OrderMgr) CurrentID() uint64 {
+	return odrMgr.ID
+}
+
+func (odrMgr *OrderMgr) UpdateID() {
+	odrMgr.ID++
+}
+
+func (odrMgr *OrderMgr) GetOrderByID(oid uint64) *Order {
+	return odrMgr.Pool[oid]
+}
+
+func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
+	if odr != nil {
+		odrMgr.Pool[odr.ID] = odr
+		return nil
+	}
+	return errors.New("order is nil")
+}
+
+func (odrMgr *OrderMgr) GetCheckByID(oid uint64) *check.Check {
+	return odrMgr.GetOrderByID(oid).Check
+}
+func (odrMgr *OrderMgr) SetCheckByID(oid uint64, chk *check.Check) {
+	odrMgr.GetOrderByID(oid).Check = chk
+}
+
+func (odrMgr *OrderMgr) GetStateByID(oid uint64) uint8 {
+	return odrMgr.GetOrderByID(oid).State
+}
+
+func (odrMgr *OrderMgr) SetStateByID(oid uint64, s uint8) {
+	odrMgr.GetOrderByID(oid).State = s
+}
+
+func (odrMgr *OrderMgr) UserPay(oid uint64) {
+	// paid
+	// check
+	// add check to om.chks
+}
 
 type Operator struct {
 	OpSK         string
@@ -23,7 +88,7 @@ type Operator struct {
 	// to -> nonce
 	Nonces map[common.Address]uint64
 
-	OdrMgr *order.OrderMgr
+	OdrMgr *OrderMgr
 }
 
 type IOperator interface {
@@ -43,9 +108,9 @@ type IOperator interface {
 func New(sk string, token string) (IOperator, *types.Transaction, error) {
 	op := &Operator{
 		OpSK:   sk,
-		OpAddr: internal.KeyToAddr(sk),
+		OpAddr: utils.KeyToAddr(sk),
 		Nonces: make(map[common.Address]uint64),
-		OdrMgr: new(order.OrderMgr),
+		OdrMgr: new(OrderMgr),
 	}
 
 	/*
@@ -65,7 +130,7 @@ func New(sk string, token string) (IOperator, *types.Transaction, error) {
 func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contractAddr common.Address, err error) {
 
 	// connect to node
-	ethClient, err := internal.GetClient(internal.HOST)
+	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
 		return nil, common.Address{}, err
 	}
@@ -100,7 +165,7 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 
 	// transfer to big.Int for contract
 	bigNonce := new(big.Int).SetUint64(nonce)
-	auth, err := internal.MakeAuth(op.OpSK, value, bigNonce, gasPrice, 9000000)
+	auth, err := utils.MakeAuth(op.OpSK, value, bigNonce, gasPrice, 9000000)
 	if err != nil {
 		return nil, common.Address{}, err
 	}
@@ -128,7 +193,7 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 
 // query balance of the contract
 func (op *Operator) QueryBalance() (*big.Int, error) {
-	ethClient, err := internal.GetClient(internal.HOST)
+	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
 		return nil, errors.New("failed to dial geth")
 	}
@@ -153,19 +218,19 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 
 // get nonce of a given provider
 func (op *Operator) GetNonce(to common.Address) (uint64, error) {
-	nonce, err := internal.GetNonce(op.ContractAddr, to)
+	nonce, err := utils.GetNonce(op.ContractAddr, to)
 	return nonce, err
 }
 
 // deposit some money into contract
 func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
-	ethClient, err := internal.GetClient(internal.HOST)
+	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
 		return nil, errors.New("failed to dial geth")
 	}
 	defer ethClient.Close()
 
-	auth, err := internal.MakeAuth(op.OpSK, nil, nil, big.NewInt(1000), 9000000)
+	auth, err := utils.MakeAuth(op.OpSK, nil, nil, big.NewInt(1000), 9000000)
 	if err != nil {
 		return nil, errors.New("make auth failed")
 	}
