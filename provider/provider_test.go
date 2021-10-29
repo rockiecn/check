@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rockiecn/check/check"
-	"github.com/rockiecn/check/internal"
+	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/utils"
 )
 
 func TestSendTx(t *testing.T) {
@@ -27,21 +27,21 @@ func TestSendTx(t *testing.T) {
 
 	pc := &check.Paycheck{
 		Check: check.Check{
-			Value:        internal.String2BigInt("10000000000000000000"),
+			Value:        utils.String2BigInt("10000000000000000000"),
 			TokenAddr:    common.HexToAddress("0xb213d01542d129806d664248A380Db8B12059061"),
 			Nonce:        0,
 			FromAddr:     common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
 			ContractAddr: common.HexToAddress("0xb31BA5cDC07A2EaFAF77c95294fd4aE27D04E9CA"),
-			CheckSig:     internal.String2Byte("456391994ed07bd03809b03a7afd9cdd4554c4a6c382289f7e4ea6c749afa7014937817cd32c0c8f983375dbae9959756e82f855538375d0bb99813a0770323500"),
+			CheckSig:     utils.String2Byte("456391994ed07bd03809b03a7afd9cdd4554c4a6c382289f7e4ea6c749afa7014937817cd32c0c8f983375dbae9959756e82f855538375d0bb99813a0770323500"),
 		},
-		PayValue:    internal.String2BigInt("1000000000000000000"),
-		PaycheckSig: internal.String2Byte("2a8488c7a44fefe771b9fcc1c0ab801f95611906f12e58c4fe2e2ac9406dc97c1601c2ae6f328c4a18df90c1c33170872cab29e1ef970644b163d117a9819ac100"),
+		PayValue:    utils.String2BigInt("1000000000000000000"),
+		PaycheckSig: utils.String2Byte("2a8488c7a44fefe771b9fcc1c0ab801f95611906f12e58c4fe2e2ac9406dc97c1601c2ae6f328c4a18df90c1c33170872cab29e1ef970644b163d117a9819ac100"),
 	}
 
 	// view balance
-	ethClient, err := internal.GetClient(pro.(*Provider).Host)
+	ethClient, err := utils.GetClient(pro.(*Provider).Host)
 	if err != nil {
 		return
 	}
@@ -79,7 +79,7 @@ func TestSendTx(t *testing.T) {
 	}
 
 	plusGas := new(big.Int)
-	plusGas = plusGas.Add(bal, internal.String2BigInt("9000000"))
+	plusGas = plusGas.Add(bal, utils.String2BigInt("9000000"))
 	total := new(big.Int)
 	total = total.Add(plusGas, pc.PayValue)
 	// require: new < old+paycheck.payvalue + gaslimit(9000000)

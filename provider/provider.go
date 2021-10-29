@@ -7,32 +7,31 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/rockiecn/check/cash"
-	"github.com/rockiecn/check/check"
-	"github.com/rockiecn/check/internal"
+	"github.com/rockiecn/check/internal/cash"
+	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/utils"
 )
 
 type Provider struct {
 	ProviderSK   string
 	ProviderAddr common.Address
 
-	// when withdraw, contract address must be set first
 	ContractAddr common.Address
-
-	Host string
-
-	Pool map[uint64]*check.Paycheck
+	Host         string
+	Pool         map[uint64]*check.Paycheck
 }
 
 type IProvider interface {
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
+	SetContract(ctAddr common.Address)
+	GetNextPayable() (*check.Paycheck, error)
 	SendTx(pc *check.Paycheck) (tx *types.Transaction, err error)
 }
 
 func New(sk string) (IProvider, error) {
 	pro := &Provider{
 		ProviderSK:   sk,
-		ProviderAddr: internal.KeyToAddr(sk),
+		ProviderAddr: utils.KeyToAddr(sk),
 		Host:         "http://localhost:8545",
 	}
 
@@ -48,7 +47,7 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 	}
 
 	// check nonce shuould larger than contract nonce
-	contractNonce, err := internal.GetNonce(pro.ContractAddr, pro.ProviderAddr)
+	contractNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
 	if err != nil {
 		return false, nil
 	}
@@ -80,7 +79,7 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 
 // get the next payable paycheck in pool
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
-	contractNonce, err := internal.GetNonce(pro.ContractAddr, pro.ProviderAddr)
+	contractNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -117,13 +116,13 @@ func (pro *Provider) SetContract(ctAddr common.Address) {
 // CallApplyCheque - send tx to contract to call apply cheque method.
 func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
-	ethClient, err := internal.GetClient(pro.Host)
+	ethClient, err := utils.GetClient(pro.Host)
 	if err != nil {
 		return nil, errors.New("failed to dial geth")
 	}
 	defer ethClient.Close()
 
-	auth, err := internal.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
+	auth, err := utils.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
 	if err != nil {
 		return nil, errors.New("make auth failed")
 	}

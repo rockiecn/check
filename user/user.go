@@ -5,8 +5,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rockiecn/check/check"
-	"github.com/rockiecn/check/internal"
+	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/utils"
 )
 
 // nonce to check
@@ -28,14 +28,14 @@ type IUser interface {
 func New(sk string) (IUser, error) {
 	user := &User{
 		UserSK:   sk,
-		UserAddr: internal.KeyToAddr(sk),
+		UserAddr: utils.KeyToAddr(sk),
 	}
 
 	return user, nil
 }
 
-// find a paycheck from pool first, whose remain value is enouph for payValue
-// then generate a new paycheck with aggregated payvalue and new signature
+// first find a paycheck from pool, whose remain value is enough for paying.
+// then generate a new paycheck with accumulated payvalue and new signature.
 func (user *User) GenPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error) {
 	for _, v := range user.Pool[to] {
 		remain := v.Check.Value.Sub(v.Check.Value, v.PayValue)

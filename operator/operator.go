@@ -16,71 +16,6 @@ import (
 	"github.com/rockiecn/check/internal/utils"
 )
 
-type Order struct {
-	ID uint64 // 订单ID
-
-	Token common.Address // 货币类型
-	Value *big.Int       // 货币数量
-	From  common.Address // user地址
-	To    common.Address // provider地址
-
-	Time time.Time // 订单提交时间
-
-	Name  string // 购买人姓名
-	Tel   string // 购买人联系方式
-	Email string // 接收支票的邮件地址
-
-	State uint8 // 标记是否已付款; 0,1 paid,2 check
-
-	Check *check.Check // 根据此订单生成的支票
-}
-
-type OrderMgr struct {
-	ID   uint64            // ID used for next order
-	Pool map[uint64]*Order // id -> order
-}
-
-func (odrMgr *OrderMgr) CurrentID() uint64 {
-	return odrMgr.ID
-}
-
-func (odrMgr *OrderMgr) UpdateID() {
-	odrMgr.ID++
-}
-
-func (odrMgr *OrderMgr) GetOrderByID(oid uint64) *Order {
-	return odrMgr.Pool[oid]
-}
-
-func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
-	if odr != nil {
-		odrMgr.Pool[odr.ID] = odr
-		return nil
-	}
-	return errors.New("order is nil")
-}
-
-func (odrMgr *OrderMgr) GetCheckByID(oid uint64) *check.Check {
-	return odrMgr.GetOrderByID(oid).Check
-}
-func (odrMgr *OrderMgr) SetCheckByID(oid uint64, chk *check.Check) {
-	odrMgr.GetOrderByID(oid).Check = chk
-}
-
-func (odrMgr *OrderMgr) GetStateByID(oid uint64) uint8 {
-	return odrMgr.GetOrderByID(oid).State
-}
-
-func (odrMgr *OrderMgr) SetStateByID(oid uint64, s uint8) {
-	odrMgr.GetOrderByID(oid).State = s
-}
-
-func (odrMgr *OrderMgr) UserPay(oid uint64) {
-	// paid
-	// check
-	// add check to om.chks
-}
-
 type Operator struct {
 	OpSK         string
 	OpAddr       common.Address
@@ -88,19 +23,16 @@ type Operator struct {
 	// to -> nonce
 	Nonces map[common.Address]uint64
 
+	// order manager
 	OdrMgr *OrderMgr
 }
 
 type IOperator interface {
 	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
-	// query current balance of contract
 	QueryBalance() (*big.Int, error)
-	// get contract nonce of a provider
 	GetNonce(to common.Address) (uint64, error)
-	// give money to contract
 	Deposit(value *big.Int) (*types.Transaction, error)
 
-	// generate a check from order id
 	GenCheck(oid uint64) (*check.Check, error)
 }
 
@@ -289,4 +221,80 @@ func (op *Operator) GenCheck(oid uint64) (*check.Check, error) {
 // mutli paycheck to a bacthCheck
 func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) {
 	return nil, nil
+}
+
+// order info
+type Order struct {
+	ID uint64 // 订单ID
+
+	Token common.Address // 货币类型
+	Value *big.Int       // 货币数量
+	From  common.Address // user地址
+	To    common.Address // provider地址
+
+	Time time.Time // 订单提交时间
+
+	Name  string // 购买人姓名
+	Tel   string // 购买人联系方式
+	Email string // 接收支票的邮件地址
+
+	State uint8 // 标记是否已付款; 0,1 paid,2 check
+
+	Check *check.Check // 根据此订单生成的支票
+}
+
+// order manager
+type OrderMgr struct {
+	ID   uint64            // ID used for next order
+	Pool map[uint64]*Order // id -> order
+}
+
+// ID for new order
+func (odrMgr *OrderMgr) CurrentID() uint64 {
+	return odrMgr.ID
+}
+
+// ID plus 1
+func (odrMgr *OrderMgr) UpdateID() {
+	odrMgr.ID++
+}
+
+// get order by id
+func (odrMgr *OrderMgr) GetOrderByID(oid uint64) *Order {
+	return odrMgr.Pool[oid]
+}
+
+// put an order into pool
+func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
+	if odr != nil {
+		odrMgr.Pool[odr.ID] = odr
+		return nil
+	}
+	return errors.New("order is nil")
+}
+
+//get the check with order id
+func (odrMgr *OrderMgr) GetCheckByID(oid uint64) *check.Check {
+	return odrMgr.GetOrderByID(oid).Check
+}
+
+// assign a check for an order by order id
+func (odrMgr *OrderMgr) SetCheckByID(oid uint64, chk *check.Check) {
+	odrMgr.GetOrderByID(oid).Check = chk
+}
+
+// get order state
+func (odrMgr *OrderMgr) GetStateByID(oid uint64) uint8 {
+	return odrMgr.GetOrderByID(oid).State
+}
+
+// set order state
+func (odrMgr *OrderMgr) SetStateByID(oid uint64, s uint8) {
+	odrMgr.GetOrderByID(oid).State = s
+}
+
+func (odrMgr *OrderMgr) UserPay(oid uint64) {
+	// paid
+	// check
+	// add check to om.chks
 }
