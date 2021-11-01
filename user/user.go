@@ -17,7 +17,7 @@ type User struct {
 	UserAddr common.Address
 	Host     string
 
-	// address to checks
+	// address to paychecks
 	Pool map[common.Address]Paychecks
 }
 
@@ -25,7 +25,7 @@ type IUser interface {
 	GenPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error)
 }
 
-func New(sk string) (IUser, error) {
+func NewUser(sk string) (IUser, error) {
 	user := &User{
 		UserSK:   sk,
 		UserAddr: utils.KeyToAddr(sk),
@@ -38,7 +38,7 @@ func New(sk string) (IUser, error) {
 // then generate a new paycheck with accumulated payvalue and new signature.
 func (user *User) GenPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error) {
 	for _, v := range user.Pool[to] {
-		remain := v.Check.Value.Sub(v.Check.Value, v.PayValue)
+		remain := new(big.Int).Sub(v.Check.Value, v.PayValue)
 		if remain.Cmp(payValue) >= 0 {
 			// aggregate
 			v.PayValue = v.PayValue.Add(v.PayValue, payValue)

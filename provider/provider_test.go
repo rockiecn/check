@@ -19,7 +19,7 @@ func TestSendTx(t *testing.T) {
 	// calc:
 	// 1. newBalance > oldBalance
 	// 2. old+paycheck.payvalue + gaslimit(9000000) > new
-	pro, err := New("cc6d63f85de8fef05446ebdd3c537c72152d0fc437fd7aa62b3019b79bd1fdd4")
+	pro, err := NewProvider("cc6d63f85de8fef05446ebdd3c537c72152d0fc437fd7aa62b3019b79bd1fdd4")
 	if err != nil {
 		fmt.Println("new provider failed:", err)
 		return

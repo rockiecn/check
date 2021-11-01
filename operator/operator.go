@@ -20,7 +20,7 @@ type Operator struct {
 	OpSK         string
 	OpAddr       common.Address
 	ContractAddr common.Address
-	Nonces       map[common.Address]uint64
+	Nonces       map[common.Address]uint64 // nonce for next check
 	OdrMgr       *OrderMgr
 }
 
@@ -31,10 +31,11 @@ type IOperator interface {
 	Deposit(value *big.Int) (*types.Transaction, error)
 
 	GenCheck(oid uint64) (*check.Check, error)
+	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
 
-// new operator, a contract is deployed.
-func New(sk string, token string) (IOperator, *types.Transaction, error) {
+// create an operator, and a contract is deployed.
+func NewOperator(sk string, token string) (IOperator, *types.Transaction, error) {
 	op := &Operator{
 		OpSK:   sk,
 		OpAddr: utils.KeyToAddr(sk),
@@ -120,7 +121,7 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 	return tx, contractAddr, nil
 }
 
-// query balance of the contract
+// query balance in contract
 func (op *Operator) QueryBalance() (*big.Int, error) {
 	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
@@ -145,9 +146,13 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 	return bal, nil
 }
 
-// get nonce of a given provider
+// get nonce of a given provider in contract
 func (op *Operator) GetNonce(to common.Address) (uint64, error) {
 	nonce, err := utils.GetNonce(op.ContractAddr, to)
+	if err != nil {
+		return 0, err
+	}
+
 	return nonce, err
 }
 
@@ -187,15 +192,15 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // last, put the check into order
 func (op *Operator) GenCheck(oid uint64) (*check.Check, error) {
 
-	odr := op.OdrMgr.GetOrderByID(oid)
-	newNonce := op.Nonces[odr.To]
+	odr := op.OdrMgr.GetOrder(oid)
+	nonce := op.Nonces[odr.To]
 
 	chk := &check.Check{
 		Value:        odr.Value,
 		TokenAddr:    odr.Token,
 		FromAddr:     odr.From,
 		ToAddr:       odr.To,
-		Nonce:        newNonce,
+		Nonce:        nonce,
 		OpAddr:       op.OpAddr,
 		ContractAddr: op.ContractAddr,
 	}
@@ -206,16 +211,16 @@ func (op *Operator) GenCheck(oid uint64) (*check.Check, error) {
 		return nil, err
 	}
 
-	// put new check into order
-	op.OdrMgr.SetCheckByID(oid, chk)
+	// assign check for this order
+	op.OdrMgr.PutCheck(oid, chk)
 
-	// update nonce
-	op.Nonces[odr.To] = newNonce + 1
+	// update nonce for next check
+	op.Nonces[odr.To] = nonce + 1
 
 	return chk, nil
 }
 
-// mutli paycheck to a bacthCheck
+// mutli paychecks to a single bacthCheck
 func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) {
 	return nil, nil
 }
@@ -240,24 +245,20 @@ type Order struct {
 	Check *check.Check // 根据此订单生成的支票
 }
 
-// order manager
 type OrderMgr struct {
 	ID   uint64            // ID used for next order
 	Pool map[uint64]*Order // id -> order
 }
 
-// ID for new order
-func (odrMgr *OrderMgr) CurrentID() uint64 {
-	return odrMgr.ID
-}
-
-// ID plus 1
-func (odrMgr *OrderMgr) UpdateID() {
+// get ID for new order, increase ID by 1
+func (odrMgr *OrderMgr) NewID() uint64 {
+	id := odrMgr.ID
 	odrMgr.ID++
+	return id
 }
 
-// get order by id
-func (odrMgr *OrderMgr) GetOrderByID(oid uint64) *Order {
+// get an order by id
+func (odrMgr *OrderMgr) GetOrder(oid uint64) *Order {
 	return odrMgr.Pool[oid]
 }
 
@@ -270,28 +271,28 @@ func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
 	return errors.New("order is nil")
 }
 
-//get the check with order id
-func (odrMgr *OrderMgr) GetCheckByID(oid uint64) *check.Check {
-	return odrMgr.GetOrderByID(oid).Check
+func (odrMgr *OrderMgr) GetCheck(oid uint64) *check.Check {
+	return odrMgr.GetOrder(oid).Check
 }
 
 // assign a check for an order by order id
-func (odrMgr *OrderMgr) SetCheckByID(oid uint64, chk *check.Check) {
-	odrMgr.GetOrderByID(oid).Check = chk
+func (odrMgr *OrderMgr) PutCheck(oid uint64, chk *check.Check) {
+	odrMgr.GetOrder(oid).Check = chk
 }
 
 // get order state
-func (odrMgr *OrderMgr) GetStateByID(oid uint64) uint8 {
-	return odrMgr.GetOrderByID(oid).State
+func (odrMgr *OrderMgr) GetState(oid uint64) uint8 {
+	return odrMgr.GetOrder(oid).State
 }
 
 // set order state
-func (odrMgr *OrderMgr) SetStateByID(oid uint64, s uint8) {
-	odrMgr.GetOrderByID(oid).State = s
+func (odrMgr *OrderMgr) SetState(oid uint64, st uint8) {
+	odrMgr.GetOrder(oid).State = st
 }
 
+// pay process for an specific order
 func (odrMgr *OrderMgr) UserPay(oid uint64) {
-	// paid
-	// check
-	// add check to om.chks
+	// set state paid after user pay money
+	// generate a check for user
+	// set check to odr.Check
 }

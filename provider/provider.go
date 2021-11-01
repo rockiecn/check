@@ -23,12 +23,11 @@ type Provider struct {
 
 type IProvider interface {
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
-	SetContract(ctAddr common.Address)
 	GetNextPayable() (*check.Paycheck, error)
 	SendTx(pc *check.Paycheck) (tx *types.Transaction, err error)
 }
 
-func New(sk string) (IProvider, error) {
+func NewProvider(sk string) (IProvider, error) {
 	pro := &Provider{
 		ProviderSK:   sk,
 		ProviderAddr: utils.KeyToAddr(sk),
@@ -38,7 +37,7 @@ func New(sk string) (IProvider, error) {
 	return pro, nil
 }
 
-// verify before store paycheck into pool
+// verify paycheck before store paycheck into pool
 func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, error) {
 
 	// value should no less than payvalue
@@ -79,33 +78,26 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 
 // get the next payable paycheck in pool
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
-	contractNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
+	ctrNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
 	if err != nil {
 		return nil, err
 	}
 
 	paychecks := pro.Pool
 
-	payNonce := uint64(0)
-	for nonce := range paychecks {
-		if nonce < contractNonce {
+	max := ^uint64(0)
+	minNonce := max
+	for k := range paychecks {
+		if k < ctrNonce {
 			continue
 		}
-		// no minNonce yet
-		if payNonce == 0 {
-			payNonce = nonce
-		} else {
-			if nonce < payNonce {
-				payNonce = nonce
-			}
+
+		if k < minNonce {
+			minNonce = k
 		}
 	}
 
-	if payNonce >= contractNonce {
-		return pro.Pool[payNonce], nil
-	} else {
-		return nil, nil
-	}
+	return pro.Pool[minNonce], nil
 }
 
 // set contract address for provider
