@@ -44,7 +44,7 @@ func NewOperator(sk string, token string) (IOperator, *types.Transaction, error)
 	}
 
 	/*
-		// give 20 eth to new contract
+		// deploy new contract, give 20 eth to it
 		tx, addr, err := op.DeployContract(comn.String2BigInt("20000000000000000000"))
 		if err != nil {
 			return nil, nil, err
@@ -121,7 +121,7 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 	return tx, contractAddr, nil
 }
 
-// query balance in contract
+// query balance of contract
 func (op *Operator) QueryBalance() (*big.Int, error) {
 	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
@@ -146,7 +146,7 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 	return bal, nil
 }
 
-// get nonce of a given provider in contract
+// get the nonce of a given provider in contract
 func (op *Operator) GetNonce(to common.Address) (uint64, error) {
 	nonce, err := utils.GetNonce(op.ContractAddr, to)
 	if err != nil {
@@ -156,7 +156,7 @@ func (op *Operator) GetNonce(to common.Address) (uint64, error) {
 	return nonce, err
 }
 
-// deposit some money into contract
+// deposit some money to contract
 func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
@@ -186,7 +186,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	return tx, nil
 }
 
-// generate a new check with order id
+// generate a new check for an order
 // first get order with oid
 // then generate a check from order info
 // last, put the check into order
@@ -220,9 +220,71 @@ func (op *Operator) GenCheck(oid uint64) (*check.Check, error) {
 	return chk, nil
 }
 
-// mutli paychecks to a single bacthCheck
+// aggregate a batch of paychecks into a single BatchCheck
 func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) {
-	return nil, nil
+	if len(pcs) == 0 {
+		return nil, errors.New("no paycheck in data")
+	}
+
+	var toAddr common.Address
+	total := new(big.Int)
+	minNonce := ^uint64(0)
+	maxNonce := uint64(0)
+	batch := new(check.BatchCheck)
+	for _, v := range pcs {
+		// verify paycheck sig
+		ok, err := v.Verify()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, errors.New("paycheck sig verify failed")
+		}
+
+		// verify check sig
+		ok, err = v.Check.Verify()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, errors.New("check sig verify failed")
+		}
+
+		// payvalue must not bigger than value
+		if v.PayValue.Cmp(v.Check.Value) > 0 {
+			return nil, errors.New("payvalue bigger than value")
+		}
+
+		if toAddr.String() == "" {
+			toAddr = v.Check.ToAddr
+		} else {
+			if toAddr != v.Check.ToAddr {
+				return nil, errors.New("to address not identical")
+			}
+		}
+
+		// aggregate payvalue
+		total.Add(total, v.PayValue)
+
+		if v.Check.Nonce < minNonce {
+			minNonce = v.Check.Nonce
+		}
+		if v.Check.Nonce > maxNonce {
+			maxNonce = v.Check.Nonce
+		}
+
+		batch.OpAddr = op.OpAddr
+		batch.ToAddr = v.Check.ToAddr
+		batch.BatchValue = total
+		batch.MinNonce = minNonce
+		batch.MaxNonce = maxNonce
+		err = batch.Sign(op.OpSK)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return batch, nil
 }
 
 // order info
@@ -250,7 +312,7 @@ type OrderMgr struct {
 	Pool map[uint64]*Order // id -> order
 }
 
-// get ID for new order, increase ID by 1
+// get ID for new order, and increase ID by 1
 func (odrMgr *OrderMgr) NewID() uint64 {
 	id := odrMgr.ID
 	odrMgr.ID++
@@ -271,6 +333,7 @@ func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
 	return errors.New("order is nil")
 }
 
+// get the check of an order
 func (odrMgr *OrderMgr) GetCheck(oid uint64) *check.Check {
 	return odrMgr.GetOrder(oid).Check
 }
