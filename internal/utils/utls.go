@@ -25,21 +25,21 @@ type Common struct {
 const HOST = "http://localhost:8545"
 
 // get address from private key
-func KeyToAddr(sk string) common.Address {
+func KeyToAddr(sk string) (common.Address, error) {
 	skECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
-		fmt.Println("hex to ecdsa failed:", err)
+		return common.Address{}, err
 	}
 
 	pubKey := skECDSA.Public()
 	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
 	if !ok {
-		log.Fatal("error casting public key to ECDSA")
+		return common.Address{}, errors.New("error casting public key to ECDSA")
 	}
 
 	addr := crypto.PubkeyToAddress(*pubKeyECDSA)
 
-	return addr
+	return addr, nil
 }
 
 // GetClient - dial to chain host

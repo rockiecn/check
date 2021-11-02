@@ -1,8 +1,11 @@
 package operator
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
@@ -228,4 +231,41 @@ func TestAggregateToAddressIdentical(t *testing.T) {
 	if got == nil || got.Error() != "to address not identical" {
 		t.Error("case 'to address not identical' not detected")
 	}
+}
+
+func TestDeploy(t *testing.T) {
+	op, _, err := NewOperator(
+		"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
+		"b213d01542d129806d664248a380db8b12059061")
+	if err != nil {
+		fmt.Println("new operator failed:", err)
+	}
+
+	// 1 eth
+	txHash, _, err := op.DeployContract(utils.String2BigInt("1000000000000000000"))
+
+	if err != nil {
+		t.Errorf("deploy contract failed")
+	}
+
+	// connect to geth
+	ethClient, err := utils.GetClient(utils.HOST)
+	if err != nil {
+		fmt.Println("get client failed")
+		return
+	}
+	defer ethClient.Close()
+
+	// wait contract deployed, txReceipt is checked
+	for {
+		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), txHash.Hash())
+		// receipt ok
+		if txReceipt != nil {
+			break
+		}
+		fmt.Println("waiting for miner, 5 seconds..")
+		time.Sleep(time.Duration(5) * time.Second)
+	}
+
+	fmt.Println("contract deploy complete")
 }

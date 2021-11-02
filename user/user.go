@@ -26,9 +26,13 @@ type IUser interface {
 }
 
 func NewUser(sk string) (IUser, error) {
+	addr, err := utils.KeyToAddr(sk)
+	if err != nil {
+		return nil, err
+	}
 	user := &User{
 		UserSK:   sk,
-		UserAddr: utils.KeyToAddr(sk),
+		UserAddr: addr,
 	}
 
 	return user, nil

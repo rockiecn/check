@@ -2,7 +2,6 @@ package operator
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"math/big"
 	"time"
@@ -10,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/utils"
@@ -36,9 +34,13 @@ type IOperator interface {
 
 // create an operator, and a contract is deployed.
 func NewOperator(sk string, token string) (IOperator, *types.Transaction, error) {
+	addr, err := utils.KeyToAddr(sk)
+	if err != nil {
+		return nil, nil, err
+	}
 	op := &Operator{
 		OpSK:   sk,
-		OpAddr: utils.KeyToAddr(sk),
+		OpAddr: addr,
 		Nonces: make(map[common.Address]uint64),
 		OdrMgr: new(OrderMgr),
 	}
@@ -66,23 +68,8 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 	}
 	defer ethClient.Close()
 
-	// string to ecdsa
-	priKeyECDSA, err := crypto.HexToECDSA(op.OpSK)
-	if err != nil {
-		return nil, common.Address{}, err
-	}
-
-	// get pubkey
-	pubKey := priKeyECDSA.Public()
-	// ecdsa
-	pubKeyECDSA, ok := pubKey.(*ecdsa.PublicKey)
-	if !ok {
-		return nil, common.Address{}, errors.New("error casting public key to ECDSA")
-	}
-	// get operator address
-	opComAddr := crypto.PubkeyToAddress(*pubKeyECDSA)
 	// get nonce
-	nonce, err := ethClient.PendingNonceAt(context.Background(), opComAddr)
+	nonce, err := ethClient.PendingNonceAt(context.Background(), op.OpAddr)
 	if err != nil {
 		return nil, common.Address{}, err
 	}

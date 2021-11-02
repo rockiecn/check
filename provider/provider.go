@@ -28,9 +28,13 @@ type IProvider interface {
 }
 
 func NewProvider(sk string) (IProvider, error) {
+	addr, err := utils.KeyToAddr(sk)
+	if err != nil {
+		return nil, err
+	}
 	pro := &Provider{
 		ProviderSK:   sk,
-		ProviderAddr: utils.KeyToAddr(sk),
+		ProviderAddr: addr,
 		Host:         "http://localhost:8545",
 	}
 
@@ -48,32 +52,34 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 	// check nonce shuould larger than contract nonce
 	contractNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
 	if err != nil {
-		return false, nil
+		return false, err
 	}
-	if pchk.Check.Nonce <= contractNonce {
-		return false, nil
+	if pchk.Check.Nonce < contractNonce {
+		return false, errors.New("nonce should not less than contract nonce")
 	}
 
 	// to address must be provider
 	if pchk.Check.ToAddr != pro.ProviderAddr {
-		return false, nil
+		return false, errors.New("to address must be provider")
 	}
 
 	// get paycheck in pool
-	pc := pro.Pool[pchk.Check.Nonce]
+	old := pro.Pool[pchk.Check.Nonce]
 	// verify payvalue
-	if pc == nil {
+	if old == nil {
 		if pchk.PayValue.Cmp(blockValue) == 0 {
 			return true, nil
+		} else {
+			return false, errors.New("payvalue verify failed for new paycheck")
 		}
 	} else {
-		pay := pchk.PayValue.Sub(pchk.PayValue, pc.PayValue)
+		pay := new(big.Int).Sub(pchk.PayValue, old.PayValue)
 		if pay.Cmp(blockValue) == 0 {
 			return true, nil
+		} else {
+			return false, errors.New("payvalue verify failed")
 		}
 	}
-
-	return false, nil
 }
 
 // get the next payable paycheck in pool

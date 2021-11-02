@@ -104,6 +104,11 @@ contract Cash  {
         return nodeNonce[node];
     }
     
+    // set nonce for test
+    function setNonce(address node, uint64 nonce) public {
+        nodeNonce[node]=nonce;
+    }
+    
     // get owner of the contract
     function getOwner() public view returns(address) {
         return owner;
