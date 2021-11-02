@@ -54,14 +54,14 @@ func (chk *Check) Sign(sk string) error {
 }
 
 // verify signature of a check
-func (chk *Check) Verify() (bool, error) {
+func (chk *Check) Verify() bool {
 
 	hash := chk.Serialize()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, chk.CheckSig)
 	if err != nil {
-		return false, errors.New("SigToPub err")
+		return false
 	}
 
 	// pub key to common.address
@@ -69,7 +69,7 @@ func (chk *Check) Verify() (bool, error) {
 
 	ok := recAddr == chk.OpAddr
 
-	return ok, nil
+	return ok
 }
 
 // calc hash of check, used to sign check and verify
@@ -99,7 +99,7 @@ func (chk *Check) Serialize() []byte {
 
 // Paycheck is an auto generated low-level Go binding around an user-defined struct.
 type Paycheck struct {
-	Check       Check
+	Check       *Check
 	PayValue    *big.Int
 	PaycheckSig []byte
 }
@@ -129,13 +129,13 @@ func (pchk *Paycheck) Sign(sk string) error {
 }
 
 // verify signature of paycheck
-func (pchk *Paycheck) Verify() (bool, error) {
+func (pchk *Paycheck) Verify() bool {
 	hash := pchk.Serialize()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, pchk.PaycheckSig)
 	if err != nil {
-		return false, errors.New("SigToPub err")
+		return false
 	}
 
 	// pub key to common.address
@@ -143,7 +143,7 @@ func (pchk *Paycheck) Verify() (bool, error) {
 
 	ok := signerAddr == pchk.Check.FromAddr
 
-	return ok, nil
+	return ok
 }
 
 // calc hash of check, used to sign check and verify

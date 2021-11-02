@@ -26,7 +26,7 @@ func TestSendTx(t *testing.T) {
 	}
 
 	pc := &check.Paycheck{
-		Check: check.Check{
+		Check: &check.Check{
 			Value:        utils.String2BigInt("10000000000000000000"),
 			TokenAddr:    common.HexToAddress("0xb213d01542d129806d664248A380Db8B12059061"),
 			Nonce:        0,

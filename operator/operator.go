@@ -226,41 +226,32 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 		return nil, errors.New("no paycheck in data")
 	}
 
-	var toAddr common.Address
+	toAddr := pcs[0].Check.ToAddr
 	total := new(big.Int)
 	minNonce := ^uint64(0)
 	maxNonce := uint64(0)
-	batch := new(check.BatchCheck)
-	for _, v := range pcs {
-		// verify paycheck sig
-		ok, err := v.Verify()
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, errors.New("paycheck sig verify failed")
-		}
 
+	for _, v := range pcs {
 		// verify check sig
-		ok, err = v.Check.Verify()
-		if err != nil {
-			return nil, err
-		}
+		ok := v.Check.Verify()
 		if !ok {
 			return nil, errors.New("check sig verify failed")
 		}
 
-		// payvalue must not bigger than value
-		if v.PayValue.Cmp(v.Check.Value) > 0 {
-			return nil, errors.New("payvalue bigger than value")
+		// verify paycheck sig
+		ok = v.Verify()
+		if !ok {
+			return nil, errors.New("paycheck sig verify failed")
 		}
 
-		if toAddr.String() == "" {
-			toAddr = v.Check.ToAddr
-		} else {
-			if toAddr != v.Check.ToAddr {
-				return nil, errors.New("to address not identical")
-			}
+		// payvalue must not bigger than value
+		if v.PayValue.Cmp(v.Check.Value) > 0 {
+			return nil, errors.New("payvalue exceed value")
+		}
+
+		// verify toaddr identical
+		if v.Check.ToAddr != toAddr {
+			return nil, errors.New("to address not identical")
 		}
 
 		// aggregate payvalue
@@ -273,15 +264,17 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 			maxNonce = v.Check.Nonce
 		}
 
-		batch.OpAddr = op.OpAddr
-		batch.ToAddr = v.Check.ToAddr
-		batch.BatchValue = total
-		batch.MinNonce = minNonce
-		batch.MaxNonce = maxNonce
-		err = batch.Sign(op.OpSK)
-		if err != nil {
-			return nil, err
-		}
+	}
+
+	batch := new(check.BatchCheck)
+	batch.OpAddr = op.OpAddr
+	batch.ToAddr = toAddr
+	batch.BatchValue = total
+	batch.MinNonce = minNonce
+	batch.MaxNonce = maxNonce
+	err := batch.Sign(op.OpSK)
+	if err != nil {
+		return nil, err
 	}
 
 	return batch, nil

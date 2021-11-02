@@ -84,7 +84,7 @@ func TestPaycheckSign(t *testing.T) {
 	var tests = []test{
 		{
 			pchk: Paycheck{
-				Check: Check{
+				Check: &Check{
 					Value:        internal.String2BigInt("100000000000000000000"),
 					TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
 					Nonce:        6,
@@ -101,7 +101,7 @@ func TestPaycheckSign(t *testing.T) {
 		},
 		{
 			pchk: Paycheck{
-				Check: Check{
+				Check: &Check{
 					Value:        internal.String2BigInt("100000000000000000000"),
 					TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
 					Nonce:        7,
@@ -118,7 +118,7 @@ func TestPaycheckSign(t *testing.T) {
 		},
 		{
 			pchk: Paycheck{
-				Check: Check{
+				Check: &Check{
 					Value:        internal.String2BigInt("100000000000000000000"),
 					TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
 					Nonce:        8,
