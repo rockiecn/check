@@ -172,8 +172,7 @@ func TestAggregatePayValue(t *testing.T) {
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
 			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
-			// changed for test
-			CheckSig: utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
+			CheckSig:     utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 		},
 		PayValue:    utils.String2BigInt("200000000000000000000"), // larger than value
 		PaycheckSig: utils.String2Byte("b5b60bc8b85fde998cfe6cf821447e770170780a5e2f7d7b588254284f0e0e3d2040102ddc6abc1b98af5417fa196f445aecf6b85154f45be0b1c3b05bb9cf2800"),

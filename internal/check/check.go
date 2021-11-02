@@ -2,7 +2,6 @@ package check
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -33,7 +32,7 @@ func (chk *Check) Sign(sk string) error {
 
 	hash := chk.Serialize()
 
-	fmt.Printf("sign hash:%x\n", hash)
+	//fmt.Printf("sign hash:%x\n", hash)
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
@@ -48,7 +47,7 @@ func (chk *Check) Sign(sk string) error {
 
 	chk.CheckSig = sigByte
 
-	fmt.Printf("sign chk sig:%x\n", sigByte)
+	//fmt.Printf("sign chk sig:%x\n", sigByte)
 
 	return nil
 }
@@ -123,7 +122,7 @@ func (pchk *Paycheck) Sign(sk string) error {
 
 	pchk.PaycheckSig = sigByte
 
-	fmt.Printf("sign pc sig:%x\n", sigByte)
+	//fmt.Printf("sign pc sig:%x\n", sigByte)
 
 	return nil
 }

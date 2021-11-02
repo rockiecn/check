@@ -2,6 +2,7 @@ package check
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -77,13 +78,13 @@ func TestCheckSign(t *testing.T) {
 func TestPaycheckSign(t *testing.T) {
 
 	type test struct {
-		pchk Paycheck
-		want bool
+		input Paycheck
+		want  bool
 	}
 
 	var tests = []test{
 		{
-			pchk: Paycheck{
+			input: Paycheck{
 				Check: &Check{
 					Value:        internal.String2BigInt("100000000000000000000"),
 					TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
@@ -100,7 +101,7 @@ func TestPaycheckSign(t *testing.T) {
 			want: true,
 		},
 		{
-			pchk: Paycheck{
+			input: Paycheck{
 				Check: &Check{
 					Value:        internal.String2BigInt("100000000000000000000"),
 					TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
@@ -117,7 +118,7 @@ func TestPaycheckSign(t *testing.T) {
 			want: true,
 		},
 		{
-			pchk: Paycheck{
+			input: Paycheck{
 				Check: &Check{
 					Value:        internal.String2BigInt("100000000000000000000"),
 					TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
@@ -141,15 +142,45 @@ func TestPaycheckSign(t *testing.T) {
 	for _, test := range tests {
 
 		newpchk := new(Paycheck)
-		*newpchk = test.pchk
+		*newpchk = test.input
 		newpchk.Sign(sk)
 
-		got := bytes.Equal(newpchk.PaycheckSig, test.pchk.PaycheckSig)
+		got := bytes.Equal(newpchk.PaycheckSig, test.input.PaycheckSig)
 
 		if got != test.want {
 			t.Errorf("want: %v, got: %v", test.want, got)
 		}
 	}
+}
+
+// a tool for new sign case
+func TestCaseTool(t *testing.T) {
+
+	input := &Paycheck{
+		Check: &Check{
+			Value:        internal.String2BigInt("100000000000000000000"),
+			TokenAddr:    common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
+			Nonce:        6,
+			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+		},
+		PayValue: internal.String2BigInt("1000000000000000000"),
+	}
+
+	// operator sk
+	opSK := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
+	// user's sk
+	usrSK := "7e5bfb82febc4c2c8529167104271ceec190eafdca277314912eaabdb67c6e5f"
+
+	// sign check
+	input.Check.Sign(opSK)
+	// sign paycheck
+	input.Sign(usrSK)
+
+	fmt.Printf("checksig: %x\n", input.Check.CheckSig)
+	fmt.Printf("paychecksig: %x\n", input.PaycheckSig)
 }
 
 /*
