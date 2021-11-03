@@ -250,6 +250,7 @@ func TestAll(t *testing.T) {
 }
 
 func Deploy(t *testing.T) {
+
 	op, err := NewOperator(
 		"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
 		"b213d01542d129806d664248a380db8b12059061")
@@ -265,9 +266,10 @@ func Deploy(t *testing.T) {
 		t.Error("deploy contract failed:", err)
 	}
 
-	fmt.Println("deploying contract, address:", addr.String())
-
+	// set contract address into operator
 	op.SetCtrAddr(addr)
+
+	fmt.Println("deploying contract, address:", addr.String())
 
 	op.WaitForMiner(txHash)
 
@@ -280,15 +282,6 @@ func QueryBalance(t *testing.T) {
 }
 
 func Deposit(t *testing.T) {
-	// op, err := NewOperator(
-	// 	"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
-	// 	"b213d01542d129806d664248a380db8b12059061")
-	// if err != nil {
-	// 	fmt.Println("create operator failed:", err)
-	// }
-
-	// addr := common.HexToAddress("0xd9145CCE52D386f254917e481eB44e9943F39138")
-	// op.SetCtrAddr(addr)
 
 	// deposit 1 eth into contract
 	txHash, err := globalOp.Deposit(utils.String2BigInt("1000000000000000000"))
