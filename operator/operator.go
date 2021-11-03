@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -23,20 +24,25 @@ type Operator struct {
 }
 
 type IOperator interface {
-	DeployContract(value *big.Int) (*types.Transaction, common.Address, error)
+	Deploy(value *big.Int) (*types.Transaction, common.Address, error)
 	QueryBalance() (*big.Int, error)
 	GetNonce(to common.Address) (uint64, error)
+	SetNonce(to common.Address, nonce uint64) (*types.Transaction, error)
 	Deposit(value *big.Int) (*types.Transaction, error)
+	WaitForMiner(txHash *types.Transaction) error
+
+	SetCtrAddr(addr common.Address)
 
 	GenCheck(oid uint64) (*check.Check, error)
 	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
 
-// create an operator, and a contract is deployed.
-func NewOperator(sk string, token string) (IOperator, *types.Transaction, error) {
+// create an operator without contract.
+// a contract should be deployed after this.
+func NewOperator(sk string, token string) (IOperator, error) {
 	addr, err := utils.KeyToAddr(sk)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	op := &Operator{
 		OpSK:   sk,
@@ -45,21 +51,11 @@ func NewOperator(sk string, token string) (IOperator, *types.Transaction, error)
 		OdrMgr: new(OrderMgr),
 	}
 
-	/*
-		// deploy new contract, give 20 eth to it
-		tx, addr, err := op.DeployContract(comn.String2BigInt("20000000000000000000"))
-		if err != nil {
-			return nil, nil, err
-		}
-		op.ContractAddr = addr
-
-		return op, tx, nil
-	*/
-	return op, nil, nil
+	return op, nil
 }
 
 // value: money to new contract
-func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contractAddr common.Address, err error) {
+func (op *Operator) Deploy(value *big.Int) (*types.Transaction, common.Address, error) {
 
 	// connect to node
 	ethClient, err := utils.GetClient(utils.HOST)
@@ -87,10 +83,12 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 		return nil, common.Address{}, err
 	}
 
-	contractAddr, tx, _, err = cash.DeployCash(auth, ethClient)
+	addr, tx, _, err := cash.DeployCash(auth, ethClient)
 	if err != nil {
 		return nil, common.Address{}, err
 	}
+
+	op.SetCtrAddr(addr)
 	/*
 		go func() {
 			// deploy contract, wait for mining.
@@ -105,7 +103,7 @@ func (op *Operator) DeployContract(value *big.Int) (tx *types.Transaction, contr
 			}
 		}()
 	*/
-	return tx, contractAddr, nil
+	return tx, addr, nil
 }
 
 // query balance of contract
@@ -141,6 +139,33 @@ func (op *Operator) GetNonce(to common.Address) (uint64, error) {
 	}
 
 	return nonce, err
+}
+
+// set nonce of contract
+func (op *Operator) SetNonce(to common.Address, nonce uint64) (*types.Transaction, error) {
+	ethClient, err := utils.GetClient(utils.HOST)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	auth, err := utils.MakeAuth(op.OpSK, nil, nil, nil, 9000000)
+	if err != nil {
+		return nil, err
+	}
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	if err != nil {
+		return nil, errors.New("newcash failed")
+	}
+
+	tx, err := cashInstance.SetNonce(auth, to, nonce)
+	if err != nil {
+		return nil, errors.New("tx failed")
+	}
+
+	return tx, nil
 }
 
 // deposit some money to contract
@@ -265,6 +290,30 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 	}
 
 	return batch, nil
+}
+
+func (op *Operator) SetCtrAddr(addr common.Address) {
+	op.ContractAddr = addr
+}
+
+func (op *Operator) WaitForMiner(txHash *types.Transaction) error {
+	// connect to geth
+	ethClient, err := utils.GetClient(utils.HOST)
+	if err != nil {
+		return err
+	}
+	defer ethClient.Close()
+
+	for {
+		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), txHash.Hash())
+		// receipt ok
+		if txReceipt != nil {
+			break
+		}
+		fmt.Println("waiting for miner, 5 seconds..")
+		time.Sleep(time.Duration(5) * time.Second)
+	}
+	return nil
 }
 
 // order info

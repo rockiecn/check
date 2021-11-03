@@ -1,16 +1,16 @@
 package operator
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/utils"
 )
+
+var globalOp *Operator
 
 // everything ok
 func TestAggregateOK(t *testing.T) {
@@ -65,7 +65,7 @@ func TestAggregateOK(t *testing.T) {
 	input = append(input, data2)
 
 	// construct operator
-	op, _, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	batch, err := op.Aggregate(input)
 	if err != nil {
 		t.Error(err)
@@ -95,7 +95,7 @@ func TestAggregateOK(t *testing.T) {
 // test input no paycheck data
 func TestAggregateNoData(t *testing.T) {
 	input := []*check.Paycheck{}
-	op, _, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "no paycheck in data" {
 		t.Error("case 'no paycheck data' not detected")
@@ -124,7 +124,7 @@ func TestAggregateCheckVerify(t *testing.T) {
 	input = append(input, data0)
 
 	// construct operator
-	op, _, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 
 	if got == nil || got.Error() != "check sig verify failed" {
@@ -155,7 +155,7 @@ func TestAggregatePayCheckVerify(t *testing.T) {
 	input = append(input, data0)
 
 	// construct operator
-	op, _, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "paycheck sig verify failed" {
 		t.Error("case 'paycheck sig verify failed' not detected")
@@ -183,7 +183,7 @@ func TestAggregatePayValue(t *testing.T) {
 	input = append(input, data0)
 
 	// construct operator
-	op, _, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "payvalue exceed value" {
 		t.Error("case 'payvalue exceed value' not detected")
@@ -226,46 +226,99 @@ func TestAggregateToAddressIdentical(t *testing.T) {
 	input = append(input, data1)
 
 	// construct operator
-	op, _, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "to address not identical" {
 		t.Error("case 'to address not identical' not detected")
 	}
 }
 
-func TestDeploy(t *testing.T) {
-	op, _, err := NewOperator(
+func TestAll(t *testing.T) {
+	Deploy(t)
+	fmt.Println("balance before deposit")
+	QueryBalance(t)
+	fmt.Println("begin deposit 1 eth to contract.")
+	Deposit(t)
+	fmt.Println("balance after deposit")
+	QueryBalance(t)
+	fmt.Println("nonce before setNonce:")
+	GetNonce(t)
+	fmt.Println("begin set nonce")
+	SetNonce(t)
+	fmt.Println("nonce after setNonce:")
+	GetNonce(t)
+}
+
+func Deploy(t *testing.T) {
+	op, err := NewOperator(
 		"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
 		"b213d01542d129806d664248a380db8b12059061")
 	if err != nil {
-		fmt.Println("new operator failed:", err)
+		t.Error("create operator failed:", err)
 	}
+
+	globalOp = op.(*Operator)
 
 	// 1 eth
-	txHash, _, err := op.DeployContract(utils.String2BigInt("1000000000000000000"))
-
+	txHash, addr, err := op.Deploy(utils.String2BigInt("1000000000000000000"))
 	if err != nil {
-		t.Errorf("deploy contract failed")
+		t.Error("deploy contract failed:", err)
 	}
 
-	// connect to geth
-	ethClient, err := utils.GetClient(utils.HOST)
+	fmt.Println("deploying contract, address:", addr.String())
+
+	op.SetCtrAddr(addr)
+
+	op.WaitForMiner(txHash)
+
+	fmt.Println("contract deploy complete, contract address:", addr.String())
+}
+
+func QueryBalance(t *testing.T) {
+	b, _ := globalOp.QueryBalance()
+	fmt.Println("balance of contract:", b.String())
+}
+
+func Deposit(t *testing.T) {
+	// op, err := NewOperator(
+	// 	"503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb",
+	// 	"b213d01542d129806d664248a380db8b12059061")
+	// if err != nil {
+	// 	fmt.Println("create operator failed:", err)
+	// }
+
+	// addr := common.HexToAddress("0xd9145CCE52D386f254917e481eB44e9943F39138")
+	// op.SetCtrAddr(addr)
+
+	// deposit 1 eth into contract
+	txHash, err := globalOp.Deposit(utils.String2BigInt("1000000000000000000"))
 	if err != nil {
-		fmt.Println("get client failed")
-		return
-	}
-	defer ethClient.Close()
-
-	// wait contract deployed, txReceipt is checked
-	for {
-		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), txHash.Hash())
-		// receipt ok
-		if txReceipt != nil {
-			break
-		}
-		fmt.Println("waiting for miner, 5 seconds..")
-		time.Sleep(time.Duration(5) * time.Second)
+		t.Error(err)
 	}
 
-	fmt.Println("contract deploy complete")
+	globalOp.WaitForMiner(txHash)
+
+}
+
+func GetNonce(t *testing.T) {
+
+	to := common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db")
+	nonce, err := globalOp.GetNonce(to)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("nonce:", nonce)
+
+}
+
+func SetNonce(t *testing.T) {
+
+	to := common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db")
+	txHash, err := globalOp.SetNonce(to, 3)
+	if err != nil {
+		t.Error(err)
+	}
+
+	globalOp.WaitForMiner(txHash)
 }
