@@ -233,7 +233,7 @@ func TestAggregateToAddressIdentical(t *testing.T) {
 	}
 }
 
-func TestAll(t *testing.T) {
+func TestContract(t *testing.T) {
 	Deploy(t)
 	fmt.Println("balance before deposit")
 	QueryBalance(t)
