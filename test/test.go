@@ -33,6 +33,8 @@ func TestAll(t *testing.T) {
 
 	pro.Verify(pchk)
 	npchk = pro.GetNextPayable()
+	QueryBalance
 	pro.Withdraw(npchk)
+	QueryBalance
 
 }
