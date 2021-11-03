@@ -24,7 +24,7 @@ type Provider struct {
 type IProvider interface {
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
 	GetNextPayable() (*check.Paycheck, error)
-	SendTx(pc *check.Paycheck) (tx *types.Transaction, err error)
+	Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error)
 }
 
 func NewProvider(sk string) (IProvider, error) {

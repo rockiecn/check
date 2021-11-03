@@ -24,6 +24,11 @@ type Common struct {
 
 const HOST = "http://localhost:8545"
 
+func Generate() string {
+	// generate private key
+	return ""
+}
+
 // get address from private key
 func KeyToAddr(sk string) (common.Address, error) {
 	skECDSA, err := crypto.HexToECDSA(sk)

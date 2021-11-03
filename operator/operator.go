@@ -26,15 +26,11 @@ type Operator struct {
 type IOperator interface {
 	Deploy(value *big.Int) (*types.Transaction, common.Address, error)
 	QueryBalance() (*big.Int, error)
-	GetNonce(to common.Address) (uint64, error)
-	SetNonce(to common.Address, nonce uint64) (*types.Transaction, error)
 	Deposit(value *big.Int) (*types.Transaction, error)
-	WaitForMiner(txHash *types.Transaction) error
+	GetNonce(to common.Address) (uint64, error)
 
-	SetCtrAddr(addr common.Address)
-
-	GenCheck(oid uint64) (*check.Check, error)
-	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
+	QueryOrder(order)
+	GenCheck(oid uint64) (*check.Check, error))
 }
 
 // create an operator without contract.

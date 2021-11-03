@@ -22,6 +22,7 @@ type User struct {
 }
 
 type IUser interface {
+	StoreCheck(*check.Check) error
 	GenPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error)
 }
 
