@@ -18,7 +18,7 @@ func TestKeyToAddr(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, err := KeyToAddr(test.input)
+		got, err := SkToAddr(test.input)
 		if err != nil {
 			t.Error(err)
 		}

@@ -1,40 +1,111 @@
 package test
 
 import (
+	"math/big"
 	"testing"
 
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
+	"github.com/rockiecn/check/order"
 	"github.com/rockiecn/check/provider"
 	"github.com/rockiecn/check/user"
 )
 
 func TestAll(t *testing.T) {
-	sk := utils.Generate()
+	opSk := utils.Generate()
 	ts := "token"
-	op, err := operator.NewOperator(sk, ts)
+	op, err := operator.New(opSk, ts)
+	if err != nil {
+		t.Error(err)
+	}
 
-	usersk := utils.Generate()
-	userAddr := utils.KeyToAddr(usersk)
-	us, err := user.NewUser(usersk)
+	usrSk := utils.Generate()
+	usr, err := user.New(usrSk)
+	if err != nil {
+		t.Error(err)
+	}
 
 	proSk := utils.Generate()
-	proAddr := utils.KeyToAddr(prosk)
-	pro, err := provider.NewProvider(prosk)
+	proAddr, err := utils.SkToAddr(proSk)
+	if err != nil {
+		t.Error(err)
+	}
+	pro, err := provider.New(proSk)
+	if err != nil {
+		t.Error(err)
+	}
 
-	or := new(order.Order) // add useradd and proaddr to
+	// create new order manager
+	om := new(order.OrderMgr)
+	// add useraddr and proaddr to
+	odr := new(order.Order)
+	// store order into order manager
+	om.PutOrder(odr)
+	// get an order from order manager
+	odr, err = op.QueryOrder(om, 0)
+	if err != nil {
+		t.Error(err)
+	}
+	if odr == nil {
+		t.Error("query order error")
+	}
 
-	op.QueryOrder(or)
+	// generate a check from an order
+	chk, err := op.NewCheck(0)
+	if err != nil {
+		t.Error(err)
+	}
 
-	chk, err := op.GenCheck(ord)
+	// store a check into order manager
+	err = usr.StoreCheck(om, chk)
+	if err != nil {
+		t.Error(err)
+	}
 
-	us.StoreCheck(chk)
-	pchk := us.GenPaycheck(proAddr, 10)
+	// generate a new paycheck for paying to provider
+	pchk, err := usr.NewPaycheck(proAddr, utils.String2BigInt(("10")))
+	if err != nil {
+		t.Error(err)
+	}
 
-	pro.Verify(pchk)
-	npchk = pro.GetNextPayable()
-	QueryBalance
-	pro.Withdraw(npchk)
-	QueryBalance
+	// verify paycheck
+	ok, err := pro.Verify(pchk, utils.String2BigInt(("10")))
+	if err != nil {
+		t.Error(err)
+	}
+	if !ok {
+		t.Error("provider verify paycheck failed")
+	}
+
+	// get next payable paycheck from pool
+	npchk, err := pro.GetNextPayable()
+	if err != nil {
+		t.Error(err)
+	}
+
+	// query balance before withdraw
+	b1, err := op.QueryBalance()
+	if err != nil {
+		t.Error(err)
+	}
+	// call contract to withdraw a paycheck
+	txHash, err := pro.Withdraw(npchk)
+	if err != nil {
+		t.Error(err)
+	}
+	// wait for a block be mined
+	err = utils.WaitForMiner(txHash)
+	if err != nil {
+		t.Error(err)
+	}
+	// query balance after withdraw
+	b2, err := op.QueryBalance()
+	if err != nil {
+		t.Error(err)
+	}
+	delta := new(big.Int).Sub(b2, b1)
+	if delta.Cmp(pchk.PayValue) != 0 {
+		t.Error("withdrawed money not equal payvalue")
+	}
 
 }

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/binary"
 	"encoding/hex"
@@ -8,7 +9,9 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"time"
 
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rockiecn/check/internal/cash"
 
@@ -30,7 +33,7 @@ func Generate() string {
 }
 
 // get address from private key
-func KeyToAddr(sk string) (common.Address, error) {
+func SkToAddr(sk string) (common.Address, error) {
 	skECDSA, err := crypto.HexToECDSA(sk)
 	if err != nil {
 		return common.Address{}, err
@@ -134,4 +137,24 @@ func String2Byte(str string) []byte {
 func BlockValue(s *big.Int, factor int64) *big.Int {
 	bigF := big.NewInt(factor)
 	return s.Mul(s, bigF)
+}
+
+func WaitForMiner(txHash *types.Transaction) error {
+	// connect to geth
+	ethClient, err := GetClient(HOST)
+	if err != nil {
+		return err
+	}
+	defer ethClient.Close()
+
+	for {
+		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), txHash.Hash())
+		// receipt ok
+		if txReceipt != nil {
+			break
+		}
+		fmt.Println("waiting for miner, 5 seconds..")
+		time.Sleep(time.Duration(5) * time.Second)
+	}
+	return nil
 }

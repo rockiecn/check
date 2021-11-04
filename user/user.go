@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/rockiecn/check/order"
 )
 
 // nonce to check
@@ -22,12 +23,12 @@ type User struct {
 }
 
 type IUser interface {
-	StoreCheck(*check.Check) error
-	GenPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error)
+	StoreCheck(om *order.OrderMgr, chk *check.Check) error
+	NewPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error)
 }
 
-func NewUser(sk string) (IUser, error) {
-	addr, err := utils.KeyToAddr(sk)
+func New(sk string) (IUser, error) {
+	addr, err := utils.SkToAddr(sk)
 	if err != nil {
 		return nil, err
 	}
@@ -39,10 +40,15 @@ func NewUser(sk string) (IUser, error) {
 	return user, nil
 }
 
+// store a check into pool
+func (user *User) StoreCheck(om *order.OrderMgr, chk *check.Check) error {
+	return nil
+}
+
 // first find a paycheck from pool, whose remain value is enough for paying.
 // then generate a new paycheck with accumulated payvalue and new signature.
-func (user *User) GenPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error) {
-	for _, v := range user.Pool[to] {
+func (user *User) NewPaycheck(proAddr common.Address, payValue *big.Int) (*check.Paycheck, error) {
+	for _, v := range user.Pool[proAddr] {
 		remain := new(big.Int).Sub(v.Check.Value, v.PayValue)
 		if remain.Cmp(payValue) >= 0 {
 			// aggregate
@@ -55,6 +61,6 @@ func (user *User) GenPaycheck(to common.Address, payValue *big.Int) (*check.Payc
 			return v, nil
 		}
 	}
-	// not found an usable paycheck
-	return nil, nil
+	// usable paycheck not found
+	return nil, errors.New("not found")
 }

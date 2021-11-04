@@ -27,8 +27,8 @@ type IProvider interface {
 	Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error)
 }
 
-func NewProvider(sk string) (IProvider, error) {
-	addr, err := utils.KeyToAddr(sk)
+func New(sk string) (IProvider, error) {
+	addr, err := utils.SkToAddr(sk)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func (pro *Provider) SetContract(ctAddr common.Address) {
 }
 
 // CallApplyCheque - send tx to contract to call apply cheque method.
-func (pro *Provider) SendTx(pc *check.Paycheck) (tx *types.Transaction, err error) {
+func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
 	ethClient, err := utils.GetClient(pro.Host)
 	if err != nil {

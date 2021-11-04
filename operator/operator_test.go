@@ -65,7 +65,7 @@ func TestAggregateOK(t *testing.T) {
 	input = append(input, data2)
 
 	// construct operator
-	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	batch, err := op.Aggregate(input)
 	if err != nil {
 		t.Error(err)
@@ -95,7 +95,7 @@ func TestAggregateOK(t *testing.T) {
 // test input no paycheck data
 func TestAggregateNoData(t *testing.T) {
 	input := []*check.Paycheck{}
-	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "no paycheck in data" {
 		t.Error("case 'no paycheck data' not detected")
@@ -124,7 +124,7 @@ func TestAggregateCheckVerify(t *testing.T) {
 	input = append(input, data0)
 
 	// construct operator
-	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 
 	if got == nil || got.Error() != "check sig verify failed" {
@@ -155,7 +155,7 @@ func TestAggregatePayCheckVerify(t *testing.T) {
 	input = append(input, data0)
 
 	// construct operator
-	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "paycheck sig verify failed" {
 		t.Error("case 'paycheck sig verify failed' not detected")
@@ -183,7 +183,7 @@ func TestAggregatePayValue(t *testing.T) {
 	input = append(input, data0)
 
 	// construct operator
-	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "payvalue exceed value" {
 		t.Error("case 'payvalue exceed value' not detected")
@@ -226,7 +226,7 @@ func TestAggregateToAddressIdentical(t *testing.T) {
 	input = append(input, data1)
 
 	// construct operator
-	op, _ := NewOperator("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
+	op, _ := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb", "0xb213d01542d129806d664248A380Db8B12059061")
 	_, got := op.Aggregate(input)
 	if got == nil || got.Error() != "to address not identical" {
 		t.Error("case 'to address not identical' not detected")
