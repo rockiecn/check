@@ -32,7 +32,7 @@ func TestAll(t *testing.T) {
 	}
 
 	// send 2 eth to operator
-	fmt.Println("send some money to operators")
+	fmt.Println("send some money to operator")
 	tx, err := op.SendCoinTo(opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
 		t.Error(err)
@@ -178,20 +178,20 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println("b1:", b1)
+	fmt.Println("balance before withdraw:", b1)
 
 	// call contract to withdraw a paycheck
-	fmt.Println("paycheck info:")
-	fmt.Println("contract:", npchk.Check.ContractAddr)
-	fmt.Println("from:", npchk.Check.FromAddr)
-	fmt.Println("to:", npchk.Check.ToAddr)
-	fmt.Println("operator:", npchk.Check.OpAddr)
-	fmt.Println("nonce:", npchk.Check.Nonce)
-	fmt.Println("token:", npchk.Check.TokenAddr)
-	fmt.Println("value:", npchk.Check.Value)
-	fmt.Printf("check sig:%x\n", npchk.Check.CheckSig)
-	fmt.Println("payvalue:", npchk.PayValue)
-	fmt.Printf("paycheck sig:%x\n", npchk.PaycheckSig)
+	// fmt.Println("paycheck info:")
+	// fmt.Println("contract:", npchk.Check.ContractAddr)
+	// fmt.Println("from:", npchk.Check.FromAddr)
+	// fmt.Println("to:", npchk.Check.ToAddr)
+	// fmt.Println("operator:", npchk.Check.OpAddr)
+	// fmt.Println("nonce:", npchk.Check.Nonce)
+	// fmt.Println("token:", npchk.Check.TokenAddr)
+	// fmt.Println("value:", npchk.Check.Value)
+	// fmt.Printf("check sig:%x\n", npchk.Check.CheckSig)
+	// fmt.Println("payvalue:", npchk.PayValue)
+	// fmt.Printf("paycheck sig:%x\n", npchk.PaycheckSig)
 
 	n, err := op.GetNonce(npchk.Check.ToAddr)
 	if err != nil {
@@ -231,10 +231,14 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println("b2:", b2)
+	fmt.Println("balance after withdraw:", b2)
 
+	fmt.Println("payvalue in paycheck:", pchk.PayValue)
+
+	// need add used gas for withdraw tx
 	delta := new(big.Int).Sub(b2, b1)
 	delta.Add(delta, new(big.Int).SetUint64(txReceipt.GasUsed*1000))
+
 	if delta.Cmp(pchk.PayValue) != 0 {
 		t.Error("withdrawed money not equal payvalue")
 	}
