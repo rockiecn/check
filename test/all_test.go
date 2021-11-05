@@ -1,7 +1,6 @@
 package test
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"testing"
@@ -32,7 +31,9 @@ func TestAll(t *testing.T) {
 	}
 
 	// send 2 eth to operator
-	fmt.Println("send some money to operator")
+	fmt.Println("send some money to operator for deploy contract")
+
+	// sender: a local account's sk, with enough money in it
 	senderSk := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
 	tx, err := utils.SendCoin(senderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
@@ -41,7 +42,7 @@ func TestAll(t *testing.T) {
 	utils.WaitForMiner(tx)
 
 	fmt.Println("now deploy contract:")
-	// operator deploy contract
+	// operator deploy contract, with 1 eth
 	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Error(err)
@@ -140,7 +141,6 @@ func TestAll(t *testing.T) {
 
 	fmt.Println("8")
 
-	fmt.Println("9")
 	// provider verify received paycheck
 	// datavalue: 0.1 eth
 	ok, err := pro.Verify(pchk, utils.String2BigInt(("100000000000000000")))
@@ -151,14 +151,14 @@ func TestAll(t *testing.T) {
 		t.Error("provider verify paycheck failed")
 	}
 
-	fmt.Println("10")
+	fmt.Println("9")
 	// provider store a paycheck into pool
 	err = pro.StorePaycheck(pchk)
 	if err != nil {
 		t.Error("store paycheck error")
 	}
 
-	fmt.Println("11")
+	fmt.Println("10")
 	// provider get next payable paycheck from pool
 	npchk, err := pro.GetNextPayable()
 	if err != nil {
@@ -173,13 +173,12 @@ func TestAll(t *testing.T) {
 	}
 	utils.WaitForMiner(tx)
 
-	fmt.Println("12")
+	fmt.Println("11")
 	// query provider balance before withdraw
 	b1, err := pro.QueryBalance()
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println("balance before withdraw:", b1)
 
 	// call contract to withdraw a paycheck
 	// fmt.Println("paycheck info:")
@@ -208,20 +207,13 @@ func TestAll(t *testing.T) {
 	utils.WaitForMiner(tx)
 
 	fmt.Println("tx hash:", tx.Hash())
-	// --- get gas used
-	// connect to geth
-	ethClient, err := utils.GetClient(utils.HOST)
+
+	gasUsed, err := utils.GetGasUsed(tx)
 	if err != nil {
 		t.Error(err)
 	}
-	defer ethClient.Close()
-	txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
-	// receipt ok
-	if txReceipt != nil {
-		fmt.Println("gas used:", txReceipt.GasUsed*1000)
-	}
 
-	fmt.Println("13")
+	fmt.Println("12")
 	// wait for a block be mined
 	err = utils.WaitForMiner(tx)
 	if err != nil {
@@ -232,13 +224,14 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println("balance after withdraw:", b2)
-
+	fmt.Println("balance before withdraw b1:", b1)
+	fmt.Println("balance after withdraw b2:", b2)
+	fmt.Println("gasUsed:", gasUsed)
 	fmt.Println("payvalue in paycheck:", pchk.PayValue)
-
+	fmt.Println("b2 = b1 + payvalue - gasUsed")
 	// need add used gas for withdraw tx
 	delta := new(big.Int).Sub(b2, b1)
-	delta.Add(delta, new(big.Int).SetUint64(txReceipt.GasUsed*1000))
+	delta.Add(delta, gasUsed)
 
 	if delta.Cmp(pchk.PayValue) != 0 {
 		t.Error("withdrawed money not equal payvalue")

@@ -224,3 +224,21 @@ func SendCoin(senderSk string, receiverAddr common.Address, value *big.Int) (*ty
 	//fmt.Println("-> Now mine a block to complete tx.")
 	return signedTx, nil
 }
+
+// get gas used, in wei
+func GetGasUsed(tx *types.Transaction) (*big.Int, error) {
+	ethClient, err := GetClient(HOST)
+	if err != nil {
+		return nil, err
+	}
+	defer ethClient.Close()
+	txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
+	// receipt ok
+	if txReceipt == nil {
+		return nil, errors.New("txReceipt is nil")
+	} else {
+		//gwei to wei
+		gasWei := new(big.Int).SetUint64(txReceipt.GasUsed * 1000)
+		return gasWei, nil
+	}
+}
