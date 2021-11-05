@@ -33,7 +33,7 @@ func TestAll(t *testing.T) {
 	// send 2 eth to operator
 	fmt.Println("send some money to operator for deploy contract")
 
-	// sender: a local account's sk, with enough money in it
+	// sender: a local account, with enough money in it
 	senderSk := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
 	tx, err := utils.SendCoin(senderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
