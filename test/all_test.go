@@ -33,7 +33,8 @@ func TestAll(t *testing.T) {
 
 	// send 2 eth to operator
 	fmt.Println("send some money to operator")
-	tx, err := op.SendCoinTo(opAddr, utils.String2BigInt("2000000000000000000"))
+	senderSk := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
+	tx, err := utils.SendCoin(senderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -166,7 +167,7 @@ func TestAll(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("now send 1 eth to provider")
-	tx, err = op.SendCoinTo(proAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(senderSk, proAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}

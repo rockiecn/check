@@ -2,16 +2,12 @@ package operator
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
-	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/utils"
@@ -25,9 +21,6 @@ type Operator struct {
 	Nonces       map[common.Address]uint64 // nonce for next check
 
 	OdrMgr *order.OrderMgr
-
-	MinerSK   string
-	MinerAddr common.Address
 }
 
 type IOperator interface {
@@ -38,8 +31,6 @@ type IOperator interface {
 	GetNonce(to common.Address) (uint64, error)
 	SetMgr(om *order.OrderMgr) error
 	StoreOrder(odr *order.Order) error
-	SendCoinTo(toAddr common.Address, value *big.Int) (*types.Transaction, error)
-	GetMiner() common.Address
 
 	QueryOrder(id uint64) (*order.Order, error)
 	NewCheck(oid uint64) (*check.Check, error)
@@ -53,19 +44,15 @@ func New(sk string) (IOperator, error) {
 		return nil, err
 	}
 
-	MinerSK := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
-	mrAddr, err := utils.SkToAddr(MinerSK)
 	if err != nil {
 		return nil, err
 	}
 
 	op := &Operator{
-		OpSK:      sk,
-		OpAddr:    opAddr,
-		Nonces:    make(map[common.Address]uint64),
-		OdrMgr:    order.NewMgr(),
-		MinerSK:   MinerSK,
-		MinerAddr: mrAddr,
+		OpSK:   sk,
+		OpAddr: opAddr,
+		Nonces: make(map[common.Address]uint64),
+		OdrMgr: order.NewMgr(),
 	}
 
 	return op, nil
@@ -331,70 +318,4 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 // set operator' contract address
 func (op *Operator) SetCtrAddr(addr common.Address) {
 	op.ContractAddr = addr
-}
-
-// miner send some coin to object
-func (op *Operator) SendCoinTo(toAddr common.Address, value *big.Int) (*types.Transaction, error) {
-
-	//https://www.cxyzjd.com/article/mongo_node/89709286
-
-	ethClient, err := utils.GetClient(utils.HOST)
-	if err != nil {
-		return nil, errors.New("failed to dial geth")
-	}
-	defer ethClient.Close()
-
-	// get sk
-	skECDSA, err := crypto.HexToECDSA(op.MinerSK)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	publicKey := skECDSA.Public()
-	pkECDSA, ok := publicKey.(*ecdsa.PublicKey)
-	if !ok {
-		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
-	}
-
-	fromAddress := crypto.PubkeyToAddress(*pkECDSA)
-
-	nonce, err := ethClient.PendingNonceAt(context.Background(), fromAddress)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	//value := big.NewInt(1000000000000000000) // in wei (1 eth)
-	gasLimit := uint64(21000) // in units
-	gasPrice, err := ethClient.SuggestGasPrice(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// create tx
-	tx := types.NewTransaction(nonce, toAddr, value, gasLimit, gasPrice, nil)
-
-	chainID, err := ethClient.NetworkID(context.Background())
-	if err != nil {
-		log.Fatal(err)
-	}
-	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), skECDSA)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// send tx
-	err = ethClient.SendTransaction(context.Background(), signedTx)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("tx sent: %s\n", signedTx.Hash().Hex()) // tx sent: 0x77006fcb3938f648e2cc65bafd27dec30b9bfbe9df41f78498b9c8b7322a249e
-
-	fmt.Println("-> Now mine a block to complete tx.")
-
-	return signedTx, nil
-}
-
-func (op *Operator) GetMiner() common.Address {
-	return op.MinerAddr
 }

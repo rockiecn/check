@@ -164,3 +164,63 @@ func GenerateSK() (string, error) {
 
 	return priv, nil
 }
+
+// send some coin
+func SendCoin(senderSk string, receiverAddr common.Address, value *big.Int) (*types.Transaction, error) {
+
+	//https://www.cxyzjd.com/article/mongo_node/89709286
+
+	ethClient, err := GetClient(HOST)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	// get sk
+	skECDSA, err := crypto.HexToECDSA(senderSk)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := skECDSA.Public()
+	pkECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*pkECDSA)
+
+	nonce, err := ethClient.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//value := big.NewInt(1000000000000000000) // in wei (1 eth)
+	gasLimit := uint64(21000) // in units
+	gasPrice, err := ethClient.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// create tx
+	tx := types.NewTransaction(nonce, receiverAddr, value, gasLimit, gasPrice, nil)
+
+	chainID, err := ethClient.NetworkID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), skECDSA)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// send tx
+	err = ethClient.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//fmt.Printf("tx sent: %s\n", signedTx.Hash().Hex()) // tx sent: 0x77006fcb3938f648e2cc65bafd27dec30b9bfbe9df41f78498b9c8b7322a249e
+	//fmt.Println("-> Now mine a block to complete tx.")
+	return signedTx, nil
+}
