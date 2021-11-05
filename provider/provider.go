@@ -17,9 +17,8 @@ type Provider struct {
 	ProviderSK   string
 	ProviderAddr common.Address
 
-	ContractAddr common.Address
-	Host         string
-	Pool         map[uint64]*check.Paycheck
+	Host string
+	Pool map[uint64]*check.Paycheck
 }
 
 type IProvider interface {
@@ -28,8 +27,6 @@ type IProvider interface {
 	GetNextPayable() (*check.Paycheck, error)
 	Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error)
 	QueryBalance() (*big.Int, error)
-
-	SetCtrAddr(ctrAddr common.Address)
 }
 
 func New(sk string) (IProvider, error) {
@@ -47,10 +44,6 @@ func New(sk string) (IProvider, error) {
 	return pro, nil
 }
 
-func (pro *Provider) SetCtrAddr(ctrAddr common.Address) {
-	pro.ContractAddr = ctrAddr
-}
-
 // verify paycheck before store paycheck into pool
 func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, error) {
 
@@ -59,10 +52,8 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 		return false, errors.New("value less than payvalue")
 	}
 
-	fmt.Println("ctrAddr:", pro.ContractAddr)
-	fmt.Println("proAddr:", pro.ProviderAddr)
 	// check nonce shuould larger than contract nonce
-	contractNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
+	contractNonce, err := utils.GetNonce(pchk.Check.ContractAddr, pro.ProviderAddr)
 	if err != nil {
 		return false, err
 	}
@@ -111,16 +102,22 @@ func (pro *Provider) StorePaycheck(pchk *check.Paycheck) error {
 
 // get the next payable paycheck in pool
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
-	ctrNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
-	if err != nil {
-		return nil, err
-	}
 
 	paychecks := pro.Pool
+	if paychecks == nil {
+		return nil, errors.New("no paycheck in provider pool")
+	}
 
 	max := ^uint64(0)
 	minNonce := max
-	for k := range paychecks {
+	for k, v := range paychecks {
+		// get current nonce in contract
+		ctrNonce, err := utils.GetNonce(v.Check.ContractAddr, pro.ProviderAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		// nonce too old, check next
 		if k < ctrNonce {
 			continue
 		}
@@ -131,11 +128,6 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 	}
 
 	return pro.Pool[minNonce], nil
-}
-
-// set contract address for provider
-func (pro *Provider) SetContract(ctAddr common.Address) {
-	pro.ContractAddr = ctAddr
 }
 
 // CallApplyCheque - send tx to contract to call apply cheque method.

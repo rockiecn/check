@@ -146,7 +146,6 @@ func WaitForMiner(tx *types.Transaction) error {
 		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
 		// receipt ok
 		if txReceipt != nil {
-			fmt.Println("receipt gas:", txReceipt.GasUsed)
 			break
 		}
 		fmt.Println("waiting for miner, 5 seconds..")

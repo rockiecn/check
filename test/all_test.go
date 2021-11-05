@@ -16,6 +16,7 @@ import (
 )
 
 func TestAll(t *testing.T) {
+
 	// generate operator
 	opSk, err := utils.GenerateSK()
 	if err != nil {
@@ -29,6 +30,25 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+
+	// send 2 eth to operator
+	fmt.Println("send some money to operators")
+	tx, err := op.SendCoinTo(opAddr, utils.String2BigInt("2000000000000000000"))
+	if err != nil {
+		t.Error(err)
+	}
+	utils.WaitForMiner(tx)
+
+	fmt.Println("now deploy contract:")
+	// operator deploy contract
+	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("1000000000000000000"))
+	if err != nil {
+		t.Error(err)
+	}
+	utils.WaitForMiner(tx)
+
+	// set contract address for operator
+	op.SetCtrAddr(ctrAddr)
 
 	fmt.Println("1")
 	// generate user
@@ -61,25 +81,6 @@ func TestAll(t *testing.T) {
 	}
 
 	fmt.Println("3")
-	fmt.Printf("miner:%x\n", op.GetMiner())
-	fmt.Printf("operator:%x\n", opAddr)
-	// send 2 eth to operator
-	fmt.Println("now send 2 eth to operator")
-	tx, err := op.SendCoinTo(opAddr, utils.String2BigInt("2000000000000000000"))
-	if err != nil {
-		t.Error(err)
-	}
-	utils.WaitForMiner(tx)
-
-	fmt.Println("now deploy contract:")
-	// deploy contract and set addr into operator
-	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("1000000000000000000"))
-	if err != nil {
-		t.Error(err)
-	}
-	utils.WaitForMiner(tx)
-	op.SetCtrAddr(ctrAddr)
-	pro.SetCtrAddr(ctrAddr)
 
 	// create an order
 	token := common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
@@ -100,12 +101,12 @@ func TestAll(t *testing.T) {
 	}
 
 	fmt.Println("4")
-	// store order
+	// operator store order into pool
 	err = op.StoreOrder(odr)
 	if err != nil {
 		t.Error(err)
 	}
-	// get an order by id
+	// operator get an order by id
 	odr, err = op.QueryOrder(0)
 	if err != nil {
 		t.Error(err)
@@ -115,21 +116,21 @@ func TestAll(t *testing.T) {
 	}
 
 	fmt.Println("5")
-	// generate a check from an order
+	// operator generate a check from order
 	chk, err := op.NewCheck(0)
 	if err != nil {
 		t.Error(err)
 	}
 
 	fmt.Println("6")
-	// store a check into pool
+	// user store a check into pool
 	err = usr.StoreCheck(chk)
 	if err != nil {
 		t.Error(err)
 	}
 
 	fmt.Println("7")
-	// generate a paycheck for paying to provider
+	// user generate a paycheck for paying to provider
 	// payvalue: 0.1 eth
 	pchk, err := usr.NewPaycheck(proAddr, utils.String2BigInt(("100000000000000000")))
 	if err != nil {
@@ -139,7 +140,8 @@ func TestAll(t *testing.T) {
 	fmt.Println("8")
 
 	fmt.Println("9")
-	// verify paycheck
+	// provider verify received paycheck
+	// datavalue: 0.1 eth
 	ok, err := pro.Verify(pchk, utils.String2BigInt(("100000000000000000")))
 	if err != nil {
 		t.Error(err)
@@ -156,7 +158,7 @@ func TestAll(t *testing.T) {
 	}
 
 	fmt.Println("11")
-	// get next payable paycheck from pool
+	// provider get next payable paycheck from pool
 	npchk, err := pro.GetNextPayable()
 	if err != nil {
 		t.Error(err)
@@ -171,7 +173,7 @@ func TestAll(t *testing.T) {
 	utils.WaitForMiner(tx)
 
 	fmt.Println("12")
-	// query balance before withdraw
+	// query provider balance before withdraw
 	b1, err := pro.QueryBalance()
 	if err != nil {
 		t.Error(err)
@@ -215,7 +217,7 @@ func TestAll(t *testing.T) {
 	txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
 	// receipt ok
 	if txReceipt != nil {
-		fmt.Println("gas used:", txReceipt.GasUsed)
+		fmt.Println("gas used:", txReceipt.GasUsed*1000)
 	}
 
 	fmt.Println("13")
@@ -224,7 +226,7 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	// query balance after withdraw
+	// query provider balance after withdraw
 	b2, err := pro.QueryBalance()
 	if err != nil {
 		t.Error(err)
@@ -232,9 +234,8 @@ func TestAll(t *testing.T) {
 	fmt.Println("b2:", b2)
 
 	delta := new(big.Int).Sub(b2, b1)
-	delta = new(big.Int).Add(delta, new(big.Int).SetUint64(txReceipt.GasUsed*1000))
+	delta.Add(delta, new(big.Int).SetUint64(txReceipt.GasUsed*1000))
 	if delta.Cmp(pchk.PayValue) != 0 {
 		t.Error("withdrawed money not equal payvalue")
 	}
-
 }
