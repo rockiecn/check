@@ -2,12 +2,16 @@ package operator
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"errors"
+	"fmt"
+	"log"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/utils"
@@ -19,31 +23,49 @@ type Operator struct {
 	OpAddr       common.Address
 	ContractAddr common.Address
 	Nonces       map[common.Address]uint64 // nonce for next check
-	OdrMgr       *order.OrderMgr
+
+	OdrMgr *order.OrderMgr
+
+	MinerSK   string
+	MinerAddr common.Address
 }
 
 type IOperator interface {
 	Deploy(value *big.Int) (*types.Transaction, common.Address, error)
+	SetCtrAddr(addr common.Address)
 	QueryBalance() (*big.Int, error)
 	Deposit(value *big.Int) (*types.Transaction, error)
 	GetNonce(to common.Address) (uint64, error)
+	SetMgr(om *order.OrderMgr) error
+	StoreOrder(odr *order.Order) error
+	SendCoinTo(toAddr common.Address, value *big.Int) (*types.Transaction, error)
+	GetMiner() common.Address
 
-	QueryOrder(om *order.OrderMgr, id uint64) (*order.Order, error)
+	QueryOrder(id uint64) (*order.Order, error)
 	NewCheck(oid uint64) (*check.Check, error)
 }
 
 // create an operator without contract.
 // a contract should be deployed after this.
-func New(sk string, token string) (IOperator, error) {
-	addr, err := utils.SkToAddr(sk)
+func New(sk string) (IOperator, error) {
+	opAddr, err := utils.SkToAddr(sk)
 	if err != nil {
 		return nil, err
 	}
+
+	MinerSK := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
+	mrAddr, err := utils.SkToAddr(MinerSK)
+	if err != nil {
+		return nil, err
+	}
+
 	op := &Operator{
-		OpSK:   sk,
-		OpAddr: addr,
-		Nonces: make(map[common.Address]uint64),
-		OdrMgr: new(order.OrderMgr),
+		OpSK:      sk,
+		OpAddr:    opAddr,
+		Nonces:    make(map[common.Address]uint64),
+		OdrMgr:    order.NewMgr(),
+		MinerSK:   MinerSK,
+		MinerAddr: mrAddr,
 	}
 
 	return op, nil
@@ -83,21 +105,6 @@ func (op *Operator) Deploy(value *big.Int) (*types.Transaction, common.Address, 
 		return nil, common.Address{}, err
 	}
 
-	op.SetCtrAddr(addr)
-	/*
-		go func() {
-			// deploy contract, wait for mining.
-			for {
-				txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
-				// receipt ok
-				if txReceipt != nil {
-					break
-				}
-				fmt.Println("deploy mining..")
-				time.Sleep(time.Duration(5) * time.Second)
-			}
-		}()
-	*/
 	return tx, addr, nil
 }
 
@@ -193,12 +200,6 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	return tx, nil
 }
 
-// get an order with id from order manager
-func (op *Operator) QueryOrder(om *order.OrderMgr, id uint64) (*order.Order, error) {
-	return nil, nil
-
-}
-
 // generate a new check for an order
 // first get order with oid
 // then generate a check from order info
@@ -231,6 +232,40 @@ func (op *Operator) NewCheck(oid uint64) (*check.Check, error) {
 	op.Nonces[odr.To] = nonce + 1
 
 	return chk, nil
+}
+
+// set a manager for operator
+func (op *Operator) SetMgr(om *order.OrderMgr) error {
+	if om == nil {
+		return errors.New("om nil")
+	}
+	op.OdrMgr = om
+	return nil
+}
+
+// store an order into order manager
+func (op *Operator) StoreOrder(odr *order.Order) error {
+	if odr == nil {
+		return errors.New("order nil")
+	}
+
+	if op.OdrMgr.Pool[odr.ID] != nil {
+		return errors.New("order already exist")
+	}
+	op.OdrMgr.Pool[odr.ID] = odr
+
+	// update manager ID for next order
+	op.OdrMgr.ID = odr.ID + 1
+
+	return nil
+}
+
+// get an order with id from order manager
+func (op *Operator) QueryOrder(id uint64) (*order.Order, error) {
+	if op.OdrMgr.Pool[id] == nil {
+		return nil, errors.New("order not exist")
+	}
+	return op.OdrMgr.Pool[id], nil
 }
 
 // aggregate a batch of paychecks into a single BatchCheck
@@ -293,6 +328,73 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 	return batch, nil
 }
 
+// set operator' contract address
 func (op *Operator) SetCtrAddr(addr common.Address) {
 	op.ContractAddr = addr
+}
+
+// miner send some coin to object
+func (op *Operator) SendCoinTo(toAddr common.Address, value *big.Int) (*types.Transaction, error) {
+
+	//https://www.cxyzjd.com/article/mongo_node/89709286
+
+	ethClient, err := utils.GetClient(utils.HOST)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	// get sk
+	skECDSA, err := crypto.HexToECDSA(op.MinerSK)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	publicKey := skECDSA.Public()
+	pkECDSA, ok := publicKey.(*ecdsa.PublicKey)
+	if !ok {
+		log.Fatal("cannot assert type: publicKey is not of type *ecdsa.PublicKey")
+	}
+
+	fromAddress := crypto.PubkeyToAddress(*pkECDSA)
+
+	nonce, err := ethClient.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//value := big.NewInt(1000000000000000000) // in wei (1 eth)
+	gasLimit := uint64(21000) // in units
+	gasPrice, err := ethClient.SuggestGasPrice(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// create tx
+	tx := types.NewTransaction(nonce, toAddr, value, gasLimit, gasPrice, nil)
+
+	chainID, err := ethClient.NetworkID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	signedTx, err := types.SignTx(tx, types.NewEIP155Signer(chainID), skECDSA)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// send tx
+	err = ethClient.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("tx sent: %s\n", signedTx.Hash().Hex()) // tx sent: 0x77006fcb3938f648e2cc65bafd27dec30b9bfbe9df41f78498b9c8b7322a249e
+
+	fmt.Println("-> Now mine a block to complete tx.")
+
+	return signedTx, nil
+}
+
+func (op *Operator) GetMiner() common.Address {
+	return op.MinerAddr
 }

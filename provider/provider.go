@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -23,8 +24,12 @@ type Provider struct {
 
 type IProvider interface {
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
+	StorePaycheck(pchk *check.Paycheck) error
 	GetNextPayable() (*check.Paycheck, error)
 	Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error)
+	QueryBalance() (*big.Int, error)
+
+	SetCtrAddr(ctrAddr common.Address)
 }
 
 func New(sk string) (IProvider, error) {
@@ -36,9 +41,14 @@ func New(sk string) (IProvider, error) {
 		ProviderSK:   sk,
 		ProviderAddr: addr,
 		Host:         "http://localhost:8545",
+		Pool:         make(map[uint64]*check.Paycheck),
 	}
 
 	return pro, nil
+}
+
+func (pro *Provider) SetCtrAddr(ctrAddr common.Address) {
+	pro.ContractAddr = ctrAddr
 }
 
 // verify paycheck before store paycheck into pool
@@ -46,9 +56,11 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 
 	// value should no less than payvalue
 	if pchk.Check.Value.Cmp(pchk.PayValue) < 0 {
-		return false, nil
+		return false, errors.New("value less than payvalue")
 	}
 
+	fmt.Println("ctrAddr:", pro.ContractAddr)
+	fmt.Println("proAddr:", pro.ProviderAddr)
 	// check nonce shuould larger than contract nonce
 	contractNonce, err := utils.GetNonce(pro.ContractAddr, pro.ProviderAddr)
 	if err != nil {
@@ -80,6 +92,21 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 			return false, errors.New("payvalue verify failed")
 		}
 	}
+}
+
+// store a paycheck into pool
+func (pro *Provider) StorePaycheck(pchk *check.Paycheck) error {
+	if pchk == nil {
+		return errors.New("paycheck nil")
+	}
+
+	if pro.Pool[pchk.Check.Nonce] != nil {
+		return errors.New("paycheck already exist")
+	}
+
+	pro.Pool[pchk.Check.Nonce] = pchk
+
+	return nil
 }
 
 // get the next payable paycheck in pool
@@ -154,4 +181,20 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 	fmt.Println("-> Now mine a block to complete tx.")
 
 	return tx, nil
+}
+
+// query provider balance
+func (pro *Provider) QueryBalance() (*big.Int, error) {
+	ethClient, err := utils.GetClient(utils.HOST)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	balance, err := ethClient.BalanceAt(context.Background(), pro.ProviderAddr, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return balance, nil
 }

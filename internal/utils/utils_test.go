@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -27,4 +28,13 @@ func TestKeyToAddr(t *testing.T) {
 			t.Errorf("want:%q got:%q", test.want, got)
 		}
 	}
+}
+
+func TestGenerateSK(t *testing.T) {
+	sk, err := GenerateSK()
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println(sk)
 }

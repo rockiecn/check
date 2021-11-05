@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/rockiecn/check/internal/cash"
@@ -26,11 +27,6 @@ type Common struct {
 }
 
 const HOST = "http://localhost:8545"
-
-func Generate() string {
-	// generate private key
-	return ""
-}
 
 // get address from private key
 func SkToAddr(sk string) (common.Address, error) {
@@ -66,7 +62,7 @@ func GetClient(endPoint string) (*ethclient.Client, error) {
 // MakeAuth - make a transactOpts to call contract
 func MakeAuth(
 	hexSk string,
-	moneyToContract *big.Int,
+	value *big.Int,
 	nonce *big.Int,
 	gasPrice *big.Int,
 	gasLimit uint64) (*bind.TransactOpts, error) {
@@ -85,12 +81,11 @@ func MakeAuth(
 		return nil, err
 	}
 	auth.GasPrice = gasPrice
-	auth.Value = moneyToContract //放进合约里的钱
+	auth.Value = value // 交易的金额
 	auth.Nonce = nonce
 	auth.GasLimit = gasLimit
 
 	return auth, nil
-
 }
 
 func Uint64ToBytes(i uint64) []byte {
@@ -139,7 +134,7 @@ func BlockValue(s *big.Int, factor int64) *big.Int {
 	return s.Mul(s, bigF)
 }
 
-func WaitForMiner(txHash *types.Transaction) error {
+func WaitForMiner(tx *types.Transaction) error {
 	// connect to geth
 	ethClient, err := GetClient(HOST)
 	if err != nil {
@@ -148,13 +143,25 @@ func WaitForMiner(txHash *types.Transaction) error {
 	defer ethClient.Close()
 
 	for {
-		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), txHash.Hash())
+		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
 		// receipt ok
 		if txReceipt != nil {
+			fmt.Println("receipt gas:", txReceipt.GasUsed)
 			break
 		}
 		fmt.Println("waiting for miner, 5 seconds..")
 		time.Sleep(time.Duration(5) * time.Second)
 	}
 	return nil
+}
+
+func GenerateSK() (string, error) {
+	privateKey, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+	privateKeyBytes := crypto.FromECDSA(privateKey)
+	priv := hexutil.Encode(privateKeyBytes)[2:]
+
+	return priv, nil
 }

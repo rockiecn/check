@@ -1,5 +1,6 @@
 package operator
 
+/*
 import (
 	"errors"
 	"fmt"
@@ -315,3 +316,6 @@ func SetNonce(t *testing.T) {
 
 	globalOp.WaitForMiner(txHash)
 }
+
+
+*/
