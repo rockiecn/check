@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rockiecn/check/internal/order"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
-	"github.com/rockiecn/check/order"
 	"github.com/rockiecn/check/provider"
 	"github.com/rockiecn/check/user"
 )

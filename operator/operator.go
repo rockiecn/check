@@ -10,8 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/order"
 	"github.com/rockiecn/check/internal/utils"
-	"github.com/rockiecn/check/order"
 )
 
 type Operator struct {
