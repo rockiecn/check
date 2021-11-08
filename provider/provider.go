@@ -45,7 +45,7 @@ func New(sk string) (IProvider, error) {
 }
 
 // verify paycheck before store paycheck into pool
-func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, error) {
+func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error) {
 
 	// value should no less than payvalue
 	if pchk.Check.Value.Cmp(pchk.PayValue) < 0 {
@@ -70,17 +70,19 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 	old := pro.Pool[pchk.Check.Nonce]
 	// verify payvalue
 	if old == nil {
-		if pchk.PayValue.Cmp(blockValue) == 0 {
+		if pchk.PayValue.Cmp(dataValue) == 0 {
 			return true, nil
 		} else {
-			return false, errors.New("payvalue verify failed for new paycheck")
+			return false, errors.New("payAmount not equal dataValue 1")
 		}
 	} else {
-		pay := new(big.Int).Sub(pchk.PayValue, old.PayValue)
-		if pay.Cmp(blockValue) == 0 {
+		payAmount := new(big.Int).Sub(pchk.PayValue, old.PayValue)
+		fmt.Println("pchk.payvalue:", pchk.PayValue)
+		fmt.Println("old.payvalue:", old.PayValue)
+		if payAmount.Cmp(dataValue) == 0 {
 			return true, nil
 		} else {
-			return false, errors.New("payvalue verify failed")
+			return false, errors.New("payAmount not equal dataValue 2")
 		}
 	}
 }
@@ -89,10 +91,6 @@ func (pro *Provider) Verify(pchk *check.Paycheck, blockValue *big.Int) (bool, er
 func (pro *Provider) StorePaycheck(pchk *check.Paycheck) error {
 	if pchk == nil {
 		return errors.New("paycheck nil")
-	}
-
-	if pro.Pool[pchk.Check.Nonce] != nil {
-		return errors.New("paycheck already exist")
 	}
 
 	pro.Pool[pchk.Check.Nonce] = pchk

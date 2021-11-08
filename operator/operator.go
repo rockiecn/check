@@ -37,13 +37,8 @@ type IOperator interface {
 }
 
 // create an operator without contract.
-// a contract should be deployed after this.
 func New(sk string) (IOperator, error) {
 	opAddr, err := utils.SkToAddr(sk)
-	if err != nil {
-		return nil, err
-	}
-
 	if err != nil {
 		return nil, err
 	}

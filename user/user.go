@@ -77,23 +77,27 @@ func (user *User) StoreCheck(chk *check.Check) error {
 
 // first find a paycheck from pool, whose remain value is enough for paying.
 // then generate a new paycheck with accumulated payvalue and new signature.
-func (user *User) NewPaycheck(proAddr common.Address, payValue *big.Int) (*check.Paycheck, error) {
+func (user *User) NewPaycheck(proAddr common.Address, dataValue *big.Int) (*check.Paycheck, error) {
 
 	fmt.Println("pro:", proAddr)
 	fmt.Printf("pool:%v\n", user.Pool[proAddr])
 
 	for _, v := range user.Pool[proAddr] {
-		fmt.Println("nonce", v.Check.Nonce)
+		fmt.Println("nonce:", v.Check.Nonce)
 		fmt.Printf("sig:%x\n", user.Pool[proAddr][0].PaycheckSig)
+		fmt.Println("value:", v.Check.Value.String())
+		fmt.Println("payvalue:", v.PayValue.String())
 		remain := new(big.Int).Sub(v.Check.Value, v.PayValue)
-		if remain.Cmp(payValue) >= 0 {
-			// aggregate
-			v.PayValue = new(big.Int).Add(v.PayValue, payValue)
+		if remain.Cmp(dataValue) >= 0 {
+			// accumulate
+			v.PayValue = new(big.Int).Add(v.PayValue, dataValue)
 			// sign
 			err := v.Sign(user.UserSK)
 			if err != nil {
 				return nil, errors.New("sign payckeck failed")
 			}
+			// update paycheck
+			user.Pool[proAddr][v.Check.Nonce] = v
 			return v, nil
 		}
 	}

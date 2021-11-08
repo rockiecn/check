@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/order"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
@@ -90,7 +91,7 @@ func TestAll(t *testing.T) {
 		token,
 		usrAddr,
 		proAddr,
-		utils.String2BigInt("200000000000000000"), // value: 0.2 eth
+		utils.String2BigInt("800000000000000000"), // value: 0.8 eth
 		time.Now(),
 		"jack",
 		"123123123",
@@ -131,19 +132,23 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("7")
+	fmt.Println("7 user generate paycheck No.1 for paying")
 	// user generate a paycheck for paying to provider
 	// payvalue: 0.1 eth
-	pchk, err := usr.NewPaycheck(proAddr, utils.String2BigInt(("100000000000000000")))
+	userPC, err := usr.NewPaycheck(proAddr, utils.String2BigInt(("100000000000000000")))
 	if err != nil {
 		t.Error(err)
 	}
 
 	fmt.Println("8")
 
+	// simulate provider receive paycheck from user
+	proPC := new(check.Paycheck)
+	*proPC = *userPC
+
 	// provider verify received paycheck
 	// datavalue: 0.1 eth
-	ok, err := pro.Verify(pchk, utils.String2BigInt(("100000000000000000")))
+	ok, err := pro.Verify(proPC, utils.String2BigInt(("100000000000000000")))
 	if err != nil {
 		t.Error(err)
 	}
@@ -152,13 +157,46 @@ func TestAll(t *testing.T) {
 	}
 
 	fmt.Println("9")
+
 	// provider store a paycheck into pool
-	err = pro.StorePaycheck(pchk)
+	err = pro.StorePaycheck(proPC)
 	if err != nil {
 		t.Error("store paycheck error")
 	}
 
-	fmt.Println("10")
+	fmt.Println("9.1 --> user generate paycheck No.2 for paying")
+	// user generate a paycheck for paying to provider
+	// store new paycheck into user pool
+	// dataValue: 0.2 eth
+	userPC, err = usr.NewPaycheck(proAddr, utils.String2BigInt(("200000000000000000")))
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("9.2")
+
+	// simulate provider receive paycheck from user
+	proPC = new(check.Paycheck)
+	*proPC = *userPC
+
+	// provider verify received paycheck
+	// datavalue: 0.2 eth
+	ok, err = pro.Verify(proPC, utils.String2BigInt(("200000000000000000")))
+	if err != nil {
+		t.Error(err)
+	}
+	if !ok {
+		t.Error("provider verify paycheck failed")
+	}
+
+	fmt.Println("9.3")
+	// provider store a paycheck into pool
+	err = pro.StorePaycheck(proPC)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("10 --> Provider withdraw with paycheck")
 	// provider get next payable paycheck from pool
 	npchk, err := pro.GetNextPayable()
 	if err != nil {
@@ -227,13 +265,13 @@ func TestAll(t *testing.T) {
 	fmt.Println("balance before withdraw b1:", b1)
 	fmt.Println("balance after withdraw b2:", b2)
 	fmt.Println("gasUsed:", gasUsed)
-	fmt.Println("payvalue in paycheck:", pchk.PayValue)
+	fmt.Println("payvalue in paycheck:", npchk.PayValue)
 	fmt.Println("b2 = b1 + payvalue - gasUsed")
 	// need add used gas for withdraw tx
 	delta := new(big.Int).Sub(b2, b1)
 	delta.Add(delta, gasUsed)
 
-	if delta.Cmp(pchk.PayValue) != 0 {
+	if delta.Cmp(npchk.PayValue) != 0 {
 		t.Error("withdrawed money not equal payvalue")
 	}
 }
