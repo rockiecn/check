@@ -115,7 +115,7 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 	return bal, nil
 }
 
-// get the nonce of a given provider in contract
+// GetNonce: get the nonce of a given provider in contract
 func (op *Operator) GetNonce(to common.Address) (uint64, error) {
 	nonce, err := utils.GetNonce(op.ContractAddr, to)
 	if err != nil {

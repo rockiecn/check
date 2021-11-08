@@ -2,7 +2,6 @@ package user
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,7 +23,7 @@ type User struct {
 
 type IUser interface {
 	StoreCheck(chk *check.Check) error
-	NewPaycheck(to common.Address, payValue *big.Int) (*check.Paycheck, error)
+	Pay(to common.Address, dataValue *big.Int) (*check.Paycheck, error)
 }
 
 func New(sk string) (IUser, error) {
@@ -57,36 +56,30 @@ func (user *User) StoreCheck(chk *check.Check) error {
 		return errors.New("paycheck sign error")
 	}
 
-	// store paycheck into pool
+	// create paychecks for a new provider
 	if user.Pool[chk.ToAddr] == nil {
 		user.Pool[chk.ToAddr] = make(Paychecks)
+		// store paycheck into pool
+		user.Pool[chk.ToAddr][chk.Nonce] = pchk
+		return nil
+	} else {
+		if user.Pool[chk.ToAddr][chk.Nonce] != nil {
+			return errors.New("paycheck with same nonce already exist in pool")
+		} else {
+			// store paycheck into pool
+			user.Pool[chk.ToAddr][chk.Nonce] = pchk
+			return nil
+		}
 	}
-	if user.Pool[chk.ToAddr][chk.Nonce] != nil {
-		return errors.New("paycheck already exist in pool")
-	}
 
-	fmt.Printf("pro:%s\n", pchk.Check.ToAddr)
-	fmt.Printf("nonce:%d\n", pchk.Check.Nonce)
-	fmt.Printf("pchk.payvalue:%s\n", pchk.PayValue)
-	fmt.Printf("pchk.paysig:%x\n", pchk.PaycheckSig)
-
-	user.Pool[chk.ToAddr][chk.Nonce] = pchk
-
-	return nil
 }
 
 // first find a paycheck from pool, whose remain value is enough for paying.
 // then generate a new paycheck with accumulated payvalue and new signature.
-func (user *User) NewPaycheck(proAddr common.Address, dataValue *big.Int) (*check.Paycheck, error) {
-
-	fmt.Println("pro:", proAddr)
-	fmt.Printf("pool:%v\n", user.Pool[proAddr])
+// finally, store the newly created paycheck into user pool
+func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Paycheck, error) {
 
 	for _, v := range user.Pool[proAddr] {
-		fmt.Println("nonce:", v.Check.Nonce)
-		fmt.Printf("sig:%x\n", user.Pool[proAddr][0].PaycheckSig)
-		fmt.Println("value:", v.Check.Value.String())
-		fmt.Println("payvalue:", v.PayValue.String())
 		remain := new(big.Int).Sub(v.Check.Value, v.PayValue)
 		if remain.Cmp(dataValue) >= 0 {
 			// accumulate
@@ -96,11 +89,11 @@ func (user *User) NewPaycheck(proAddr common.Address, dataValue *big.Int) (*chec
 			if err != nil {
 				return nil, errors.New("sign payckeck failed")
 			}
-			// update paycheck
+			// store new paycheck into pool
 			user.Pool[proAddr][v.Check.Nonce] = v
 			return v, nil
 		}
 	}
 	// usable paycheck not found
-	return nil, errors.New("not found")
+	return nil, errors.New("usable paycheck not found")
 }

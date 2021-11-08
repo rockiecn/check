@@ -77,8 +77,6 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 		}
 	} else {
 		payAmount := new(big.Int).Sub(pchk.PayValue, old.PayValue)
-		fmt.Println("pchk.payvalue:", pchk.PayValue)
-		fmt.Println("old.payvalue:", old.PayValue)
 		if payAmount.Cmp(dataValue) == 0 {
 			return true, nil
 		} else {

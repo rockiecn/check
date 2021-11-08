@@ -17,6 +17,7 @@ import (
 
 func TestAll(t *testing.T) {
 
+	fmt.Println("<< PHASE 1: Initialize >>")
 	// generate operator
 	opSk, err := utils.GenerateSK()
 	if err != nil {
@@ -53,7 +54,6 @@ func TestAll(t *testing.T) {
 	// set contract address for operator
 	op.SetCtrAddr(ctrAddr)
 
-	fmt.Println("1")
 	// generate user
 	usrSk, err := utils.GenerateSK()
 	if err != nil {
@@ -68,7 +68,6 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("2")
 	// generate provider
 	proSk, err := utils.GenerateSK()
 	if err != nil {
@@ -83,7 +82,7 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("3")
+	fmt.Println("<< PHASE 2: New Order >>")
 
 	// create an order
 	token := common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
@@ -103,7 +102,6 @@ func TestAll(t *testing.T) {
 		t.Error("create order failed")
 	}
 
-	fmt.Println("4")
 	// operator store order into pool
 	err = op.StoreOrder(odr)
 	if err != nil {
@@ -118,29 +116,30 @@ func TestAll(t *testing.T) {
 		t.Error("query order error")
 	}
 
-	fmt.Println("5")
+	fmt.Println("<< PHASE 3: Order to Check >>")
 	// operator generate a check from order
-	chk, err := op.NewCheck(0)
+	opChk, err := op.NewCheck(0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	fmt.Println("6")
-	// user store a check into pool
-	err = usr.StoreCheck(chk)
+	// simulate operator send check to user
+	usrChk := new(check.Check)
+	*usrChk = *opChk
+	// user store check into pool
+	err = usr.StoreCheck(usrChk)
 	if err != nil {
 		t.Error(err)
 	}
 
-	fmt.Println("7 user generate paycheck No.1 for paying")
+	fmt.Println("<< PHASE 4: user pay 0.1 eth >>")
 	// user generate a paycheck for paying to provider
-	// payvalue: 0.1 eth
-	userPC, err := usr.NewPaycheck(proAddr, utils.String2BigInt(("100000000000000000")))
+	// store new paycheck into user pool
+	// pay: 0.1 eth
+	userPC, err := usr.Pay(proAddr, utils.String2BigInt(("100000000000000000")))
 	if err != nil {
 		t.Error(err)
 	}
-
-	fmt.Println("8")
 
 	// simulate provider receive paycheck from user
 	proPC := new(check.Paycheck)
@@ -156,24 +155,18 @@ func TestAll(t *testing.T) {
 		t.Error("provider verify paycheck failed")
 	}
 
-	fmt.Println("9")
-
 	// provider store a paycheck into pool
 	err = pro.StorePaycheck(proPC)
 	if err != nil {
 		t.Error("store paycheck error")
 	}
 
-	fmt.Println("9.1 --> user generate paycheck No.2 for paying")
-	// user generate a paycheck for paying to provider
-	// store new paycheck into user pool
-	// dataValue: 0.2 eth
-	userPC, err = usr.NewPaycheck(proAddr, utils.String2BigInt(("200000000000000000")))
+	fmt.Println("<< PHASE 5: user pay 0.2 eth >>")
+	// pay: 0.2 eth
+	userPC, err = usr.Pay(proAddr, utils.String2BigInt(("200000000000000000")))
 	if err != nil {
 		t.Error(err)
 	}
-
-	fmt.Println("9.2")
 
 	// simulate provider receive paycheck from user
 	proPC = new(check.Paycheck)
@@ -189,14 +182,41 @@ func TestAll(t *testing.T) {
 		t.Error("provider verify paycheck failed")
 	}
 
-	fmt.Println("9.3")
 	// provider store a paycheck into pool
 	err = pro.StorePaycheck(proPC)
 	if err != nil {
 		t.Error(err)
 	}
 
-	fmt.Println("10 --> Provider withdraw with paycheck")
+	fmt.Println("<< PHASE 6: user pay 0.3 eth >>")
+	// pay: 0.3 eth
+	userPC, err = usr.Pay(proAddr, utils.String2BigInt(("300000000000000000")))
+	if err != nil {
+		t.Error(err)
+	}
+
+	// simulate provider receive paycheck from user
+	proPC = new(check.Paycheck)
+	*proPC = *userPC
+
+	// provider verify received paycheck
+	// datavalue: 0.2 eth
+	ok, err = pro.Verify(proPC, utils.String2BigInt(("300000000000000000")))
+	if err != nil {
+		t.Error(err)
+	}
+	if !ok {
+		t.Error("provider verify paycheck failed")
+	}
+
+	// provider store a paycheck into pool
+	err = pro.StorePaycheck(proPC)
+	if err != nil {
+		t.Error(err)
+	}
+
+	fmt.Println("<< PHASE 7: provider withdraw >>")
+
 	// provider get next payable paycheck from pool
 	npchk, err := pro.GetNextPayable()
 	if err != nil {
@@ -211,7 +231,6 @@ func TestAll(t *testing.T) {
 	}
 	utils.WaitForMiner(tx)
 
-	fmt.Println("11")
 	// query provider balance before withdraw
 	b1, err := pro.QueryBalance()
 	if err != nil {
@@ -251,7 +270,6 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("12")
 	// wait for a block be mined
 	err = utils.WaitForMiner(tx)
 	if err != nil {
@@ -263,15 +281,16 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 	fmt.Println("balance before withdraw b1:", b1)
-	fmt.Println("balance after withdraw b2:", b2)
+	fmt.Println("payvalue:", npchk.PayValue)
 	fmt.Println("gasUsed:", gasUsed)
-	fmt.Println("payvalue in paycheck:", npchk.PayValue)
-	fmt.Println("b2 = b1 + payvalue - gasUsed")
+	fmt.Println("balance after withdraw b2:", b2)
 	// need add used gas for withdraw tx
 	delta := new(big.Int).Sub(b2, b1)
 	delta.Add(delta, gasUsed)
 
 	if delta.Cmp(npchk.PayValue) != 0 {
 		t.Error("withdrawed money not equal payvalue")
+	} else {
+		fmt.Println("withdrawed money equal payvalue")
 	}
 }

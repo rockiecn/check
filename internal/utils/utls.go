@@ -148,8 +148,8 @@ func WaitForMiner(tx *types.Transaction) error {
 		if txReceipt != nil {
 			break
 		}
-		fmt.Println("waiting for miner, 5 seconds..")
-		time.Sleep(time.Duration(5) * time.Second)
+		fmt.Println("waiting for miner, 10 seconds..")
+		time.Sleep(time.Duration(10) * time.Second)
 	}
 	return nil
 }
