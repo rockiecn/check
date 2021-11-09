@@ -37,6 +37,7 @@ func TestAll(t *testing.T) {
 
 	// sender: a local account, with enough money in it
 	senderSk := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
+	// send 2 eth to operator
 	tx, err := utils.SendCoin(senderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
 		t.Error(err)
@@ -44,8 +45,8 @@ func TestAll(t *testing.T) {
 	utils.WaitForMiner(tx)
 
 	fmt.Println("now deploy contract:")
-	// operator deploy contract, with 1 eth
-	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("1000000000000000000"))
+	// operator deploy contract, with 1.8 eth
+	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("1800000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -90,7 +91,7 @@ func TestAll(t *testing.T) {
 		token,
 		usrAddr,
 		proAddr,
-		utils.String2BigInt("800000000000000000"), // value: 0.8 eth
+		utils.String2BigInt("1500000000000000000"), // order value: 1.5 eth
 		time.Now(),
 		"jack",
 		"123123123",
@@ -108,22 +109,22 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 	// operator get an order by id
-	odr, err = op.QueryOrder(0)
+	odr, err = op.GetOrder(0)
 	if err != nil {
 		t.Error(err)
 	}
 	if odr == nil {
-		t.Error("query order error")
+		t.Error("get order failed")
 	}
 
 	fmt.Println("<< PHASE 3: Order to Check >>")
-	// operator generate a check from order
-	opChk, err := op.NewCheck(0)
+	// operator create a check from order
+	opChk, err := op.CreateCheck(0)
 	if err != nil {
 		t.Error(err)
 	}
 
-	// simulate operator send check to user
+	// simulate user receive check from operator
 	usrChk := new(check.Check)
 	*usrChk = *opChk
 	// user store check into pool

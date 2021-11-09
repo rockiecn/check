@@ -53,7 +53,7 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 	}
 
 	// check nonce shuould larger than contract nonce
-	contractNonce, err := utils.GetNonce(pchk.Check.ContractAddr, pro.ProviderAddr)
+	contractNonce, err := utils.GetCtNonce(pchk.Check.ContractAddr, pro.ProviderAddr)
 	if err != nil {
 		return false, err
 	}
@@ -108,7 +108,7 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 	minNonce := max
 	for k, v := range paychecks {
 		// get current nonce in contract
-		ctrNonce, err := utils.GetNonce(v.Check.ContractAddr, pro.ProviderAddr)
+		ctrNonce, err := utils.GetCtNonce(v.Check.ContractAddr, pro.ProviderAddr)
 		if err != nil {
 			return nil, err
 		}

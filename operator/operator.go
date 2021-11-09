@@ -32,8 +32,8 @@ type IOperator interface {
 	SetMgr(om *order.OrderMgr) error
 	StoreOrder(odr *order.Order) error
 
-	QueryOrder(id uint64) (*order.Order, error)
-	NewCheck(oid uint64) (*check.Check, error)
+	GetOrder(id uint64) (*order.Order, error)
+	CreateCheck(oid uint64) (*check.Check, error)
 }
 
 // create an operator without contract.
@@ -117,7 +117,7 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 
 // GetNonce: get the nonce of a given provider in contract
 func (op *Operator) GetNonce(to common.Address) (uint64, error) {
-	nonce, err := utils.GetNonce(op.ContractAddr, to)
+	nonce, err := utils.GetCtNonce(op.ContractAddr, to)
 	if err != nil {
 		return 0, err
 	}
@@ -186,7 +186,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // first get order with oid
 // then generate a check from order info
 // last, put the check into order
-func (op *Operator) NewCheck(oid uint64) (*check.Check, error) {
+func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
 	odr := op.OdrMgr.GetOrder(oid)
 	nonce := op.Nonces[odr.To]
@@ -243,7 +243,7 @@ func (op *Operator) StoreOrder(odr *order.Order) error {
 }
 
 // get an order with id from order manager
-func (op *Operator) QueryOrder(id uint64) (*order.Order, error) {
+func (op *Operator) GetOrder(id uint64) (*order.Order, error) {
 	if op.OdrMgr.Pool[id] == nil {
 		return nil, errors.New("order not exist")
 	}

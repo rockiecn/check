@@ -95,7 +95,7 @@ func Uint64ToBytes(i uint64) []byte {
 }
 
 // get contract nonce
-func GetNonce(contract common.Address, to common.Address) (uint64, error) {
+func GetCtNonce(contract common.Address, to common.Address) (uint64, error) {
 
 	cli, err := GetClient(HOST)
 	if err != nil {
@@ -148,8 +148,7 @@ func WaitForMiner(tx *types.Transaction) error {
 		if txReceipt != nil {
 			break
 		}
-		fmt.Println("waiting for miner, 10 seconds..")
-		time.Sleep(time.Duration(10) * time.Second)
+		time.Sleep(time.Duration(1) * time.Second)
 	}
 	return nil
 }

@@ -74,26 +74,63 @@ func (user *User) StoreCheck(chk *check.Check) error {
 
 }
 
-// first find a paycheck from pool, whose remain value is enough for paying.
-// then generate a new paycheck with accumulated payvalue and new signature.
-// finally, store the newly created paycheck into user pool
+// Pay- Create a paycheck legal for paying dataValue
+// First find the legal paycheck in pool.
+// 1. Remain value is enough for paying dataValue.
+// 2. Paycheck's nonce no less than nonce in contract
+// 3. The one with the minimum nonce in the result
+// Then update it with accumulated payvalue and new signature.
 func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Paycheck, error) {
 
+	var (
+		theOne   = (*check.Paycheck)(nil)
+		minNonce = ^uint64(0)
+	)
+
+	// check each payvalue in user pool
 	for _, v := range user.Pool[proAddr] {
+		// get nonce in contract
+		ctNonce, err := utils.GetCtNonce(v.Check.ContractAddr, v.Check.ToAddr)
+		if err != nil {
+			return nil, err
+		}
+		// nonce too old
+		if v.Check.Nonce < ctNonce {
+			continue
+		}
+
+		// remain value must no less than dataValue
 		remain := new(big.Int).Sub(v.Check.Value, v.PayValue)
-		if remain.Cmp(dataValue) >= 0 {
-			// accumulate
-			v.PayValue = new(big.Int).Add(v.PayValue, dataValue)
-			// sign
-			err := v.Sign(user.UserSK)
-			if err != nil {
-				return nil, errors.New("sign payckeck failed")
+		if remain.Cmp(dataValue) < 0 {
+			continue
+		} else {
+			// got one
+			if v.Check.Nonce < minNonce {
+				minNonce = v.Check.Nonce
+				theOne = v
+			} else {
+				continue
 			}
-			// store new paycheck into pool
-			user.Pool[proAddr][v.Check.Nonce] = v
-			return v, nil
 		}
 	}
+
 	// usable paycheck not found
-	return nil, errors.New("usable paycheck not found")
+	if theOne == nil {
+		return nil, errors.New("usable paycheck not found")
+	} else {
+		// a tempor paycheck for sign
+		newPchk := new(check.Paycheck)
+		*newPchk = *theOne
+		newPchk.PayValue = new(big.Int).Add(theOne.PayValue, dataValue)
+		// sign
+		err := newPchk.Sign(user.UserSK)
+		if err != nil {
+			return nil, errors.New("sign payckeck failed")
+		}
+
+		// update data in pool with new paycheck
+		*theOne = *newPchk
+
+		return theOne, nil
+	}
 }
