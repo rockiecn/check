@@ -15,9 +15,12 @@ import (
 	"github.com/rockiecn/check/user"
 )
 
-func TestAll(t *testing.T) {
+// a single provider involved
+// a single check is used
+// multi pay actions by user, and 1 withdraw action by provider
+func TestSingleProSingleCheck(t *testing.T) {
 
-	fmt.Println("<< PHASE 1: Initialize >>")
+	fmt.Println("<< Initialize >>")
 	// generate operator
 	opSk, err := utils.GenerateSK()
 	if err != nil {
@@ -35,10 +38,8 @@ func TestAll(t *testing.T) {
 	// send 2 eth to operator
 	fmt.Println("send some money to operator for deploy contract")
 
-	// sender: a local account, with enough money in it
-	senderSk := "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
 	// send 2 eth to operator
-	tx, err := utils.SendCoin(senderSk, opAddr, utils.String2BigInt("2000000000000000000"))
+	tx, err := utils.SendCoin(SenderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -83,7 +84,7 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("<< PHASE 2: New Order >>")
+	fmt.Println("<< New Order >>")
 
 	// create an order
 	token := common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
@@ -117,7 +118,7 @@ func TestAll(t *testing.T) {
 		t.Error("get order failed")
 	}
 
-	fmt.Println("<< PHASE 3: Order to Check >>")
+	fmt.Println("<< Order to Check >>")
 	// operator create a check from order
 	opChk, err := op.CreateCheck(0)
 	if err != nil {
@@ -133,7 +134,7 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("<< PHASE 4: user pay 0.1 eth >>")
+	fmt.Println("<< pay 0.1 eth >>")
 	// user generate a paycheck for paying to provider
 	// store new paycheck into user pool
 	// pay: 0.1 eth
@@ -162,7 +163,7 @@ func TestAll(t *testing.T) {
 		t.Error("store paycheck error")
 	}
 
-	fmt.Println("<< PHASE 5: user pay 0.2 eth >>")
+	fmt.Println("<< pay 0.2 eth >>")
 	// pay: 0.2 eth
 	userPC, err = usr.Pay(proAddr, utils.String2BigInt(("200000000000000000")))
 	if err != nil {
@@ -189,7 +190,7 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("<< PHASE 6: user pay 0.3 eth >>")
+	fmt.Println("<< pay 0.3 eth >>")
 	// pay: 0.3 eth
 	userPC, err = usr.Pay(proAddr, utils.String2BigInt(("300000000000000000")))
 	if err != nil {
@@ -216,7 +217,7 @@ func TestAll(t *testing.T) {
 		t.Error(err)
 	}
 
-	fmt.Println("<< PHASE 7: provider withdraw >>")
+	fmt.Println("<< withdraw >>")
 
 	// provider get next payable paycheck from pool
 	npchk, err := pro.GetNextPayable()
@@ -226,7 +227,7 @@ func TestAll(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("now send 1 eth to provider")
-	tx, err = utils.SendCoin(senderSk, proAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -237,19 +238,6 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	// call contract to withdraw a paycheck
-	// fmt.Println("paycheck info:")
-	// fmt.Println("contract:", npchk.Check.ContractAddr)
-	// fmt.Println("from:", npchk.Check.FromAddr)
-	// fmt.Println("to:", npchk.Check.ToAddr)
-	// fmt.Println("operator:", npchk.Check.OpAddr)
-	// fmt.Println("nonce:", npchk.Check.Nonce)
-	// fmt.Println("token:", npchk.Check.TokenAddr)
-	// fmt.Println("value:", npchk.Check.Value)
-	// fmt.Printf("check sig:%x\n", npchk.Check.CheckSig)
-	// fmt.Println("payvalue:", npchk.PayValue)
-	// fmt.Printf("paycheck sig:%x\n", npchk.PaycheckSig)
 
 	n, err := op.GetNonce(npchk.Check.ToAddr)
 	if err != nil {

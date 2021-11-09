@@ -99,19 +99,19 @@ func (pro *Provider) StorePaycheck(pchk *check.Paycheck) error {
 // get the next payable paycheck in pool
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 
-	paychecks := pro.Pool
-	if paychecks == nil {
-		return nil, errors.New("no paycheck in provider pool")
-	}
+	var (
+		theOne   = (*check.Paycheck)(nil)
+		max      = ^uint64(0)
+		minNonce = max
+	)
 
-	max := ^uint64(0)
-	minNonce := max
-	for k, v := range paychecks {
+	for k, v := range pro.Pool {
 		// get current nonce in contract
 		ctrNonce, err := utils.GetCtNonce(v.Check.ContractAddr, pro.ProviderAddr)
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("contract nonce:", ctrNonce)
 
 		// nonce too old, check next
 		if k < ctrNonce {
@@ -120,10 +120,11 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 
 		if k < minNonce {
 			minNonce = k
+			theOne = v
 		}
 	}
 
-	return pro.Pool[minNonce], nil
+	return theOne, nil
 }
 
 // CallApplyCheque - send tx to contract to call apply cheque method.
