@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -111,7 +110,6 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("contract nonce:", ctrNonce)
 
 		// nonce too old, check next
 		if k < ctrNonce {
@@ -167,7 +165,7 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 		return nil, errors.New("tx failed")
 	}
 
-	fmt.Println("-> Now mine a block to complete tx.")
+	//fmt.Println("Mine a block to complete.")
 
 	return tx, nil
 }
