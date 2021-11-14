@@ -1,0 +1,28 @@
+syntax = "proto3";
+package pb;
+
+option go_package = "../pb";
+
+message Check {
+	uint64 value = 1;
+	string token_address = 2;	// token
+	uint64 nonce = 3;
+	string from = 4;	// user
+	string to =5;	// storage
+	string operator_address = 6; // operator
+	string contract_address = 7; //运营合约地址
+    bytes check_sig = 8; 
+}
+
+message Paycheck {
+	Check check = 1;
+    uint64 pay_value = 2; 
+	bytes paycheck_sig = 3; //运营商对cheque的签名
+}
+
+message PaycheckBatch {
+	string check_batch_to = 1; //存储节点号
+	uint64 check_batch_value = 2; //聚合后的支票面额
+	uint64 min_nonce = 3; //聚合的nonce最小值
+	uint64 max_nonce = 4; //聚合的nonce最大值
+}
