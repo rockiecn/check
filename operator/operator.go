@@ -30,8 +30,7 @@ type IOperator interface {
 	Deposit(value *big.Int) (*types.Transaction, error)
 	GetNonce(to common.Address) (uint64, error)
 	SetMgr(om *order.OrderMgr) error
-	StoreOrder(odr *order.Order) error
-
+	PutOrder(odr *order.Order) error
 	GetOrder(id uint64) (*order.Order, error)
 	CreateCheck(oid uint64) (*check.Check, error)
 }
@@ -188,7 +187,11 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // last, put the check into order
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
-	odr := op.OdrMgr.GetOrder(oid)
+	odr, err := op.OdrMgr.GetOrder(oid)
+	if err != nil {
+		return nil, err
+	}
+
 	nonce := op.Nonces[odr.To]
 
 	chk := &check.Check{
@@ -202,14 +205,11 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 	}
 
 	// signed by operator
-	err := chk.Sign(op.OpSK)
+	err = chk.Sign(op.OpSK)
 	if err != nil {
 		return nil, err
 	}
-
-	// assign check for this order
 	op.OdrMgr.PutCheck(oid, chk)
-
 	// update nonce for next check
 	op.Nonces[odr.To] = nonce + 1
 
@@ -225,29 +225,24 @@ func (op *Operator) SetMgr(om *order.OrderMgr) error {
 	return nil
 }
 
-// store an order into order manager
-func (op *Operator) StoreOrder(odr *order.Order) error {
-	if odr == nil {
-		return errors.New("order nil")
+// store an order into order pool
+func (op *Operator) PutOrder(odr *order.Order) error {
+	err := op.OdrMgr.PutOrder(odr)
+	if err != nil {
+		return err
+	} else {
+		// update manager ID for next order
+		op.OdrMgr.ID = odr.ID + 1
+		return nil
 	}
-
-	if op.OdrMgr.Pool[odr.ID] != nil {
-		return errors.New("order already exist")
-	}
-	op.OdrMgr.Pool[odr.ID] = odr
-
-	// update manager ID for next order
-	op.OdrMgr.ID = odr.ID + 1
-
-	return nil
 }
 
 // get an order with id from order manager
-func (op *Operator) GetOrder(id uint64) (*order.Order, error) {
-	if op.OdrMgr.Pool[id] == nil {
+func (op *Operator) GetOrder(oid uint64) (*order.Order, error) {
+	if op.OdrMgr.OdrPool[oid] == nil {
 		return nil, errors.New("order not exist")
 	}
-	return op.OdrMgr.Pool[id], nil
+	return op.OdrMgr.OdrPool[oid], nil
 }
 
 // aggregate a batch of paychecks into a single BatchCheck

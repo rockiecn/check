@@ -98,14 +98,13 @@ func TestSingleProSingleCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr == nil {
 		t.Error("create order failed")
 	}
 
 	// operator store order into pool
-	err = op.StoreOrder(odr)
+	err = op.PutOrder(odr)
 	if err != nil {
 		t.Error(err)
 	}

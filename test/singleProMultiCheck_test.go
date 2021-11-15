@@ -118,7 +118,6 @@ func TestSingleProMultiCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr0 == nil {
 		t.Fatal("create order 0 failed")
@@ -126,7 +125,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 
 	fmt.Println("-> Operator Store Order")
 	// operator store order into pool
-	err = op.StoreOrder(odr0)
+	err = op.PutOrder(odr0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,14 +167,13 @@ func TestSingleProMultiCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr1 == nil {
 		t.Fatal("create order 1 failed")
 	}
 
 	// operator store order into pool
-	err = op.StoreOrder(odr1)
+	err = op.PutOrder(odr1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,14 +215,13 @@ func TestSingleProMultiCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr2 == nil {
 		t.Fatal("create order 2 failed")
 	}
 
 	// operator store order into pool
-	err = op.StoreOrder(odr2)
+	err = op.PutOrder(odr2)
 	if err != nil {
 		t.Fatal(err)
 	}

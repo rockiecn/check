@@ -54,12 +54,11 @@ func TestMultiProMultiCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr0 == nil {
 		t.Fatal("create order failed")
 	}
-	err := Op.StoreOrder(odr0)
+	err := Op.PutOrder(odr0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,12 +88,11 @@ func TestMultiProMultiCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr1 == nil {
 		t.Fatal("create order failed")
 	}
-	err = Op.StoreOrder(odr1)
+	err = Op.PutOrder(odr1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -124,12 +122,11 @@ func TestMultiProMultiCheck(t *testing.T) {
 		"123123123",
 		"asdf@asdf.com",
 		0,
-		nil,
 	)
 	if odr2 == nil {
 		t.Fatal("create order failed")
 	}
-	err = Op.StoreOrder(odr2)
+	err = Op.PutOrder(odr2)
 	if err != nil {
 		t.Fatal(err)
 	}
