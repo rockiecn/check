@@ -1,4 +1,4 @@
-package order
+package mgr
 
 import (
 	"errors"
@@ -32,36 +32,8 @@ type OrderMgr struct {
 	ChkPool map[uint64]*check.Check // id -> check
 }
 
-// create a new order
-func NewOdr(
-	ID uint64,
-	token common.Address,
-	from common.Address,
-	to common.Address,
-	value *big.Int,
-	t int64,
-	name string,
-	tel string,
-	email string,
-	state uint8,
-) *Order {
-	odr := &Order{
-		ID:    ID,
-		Token: token,
-		From:  from,
-		To:    to,
-		Value: value,
-		Time:  t,
-		Name:  name,
-		Tel:   tel,
-		Email: email,
-		State: state,
-	}
-	return odr
-}
-
 // create a new order manager
-func NewMgr() *OrderMgr {
+func New() *OrderMgr {
 	om := &OrderMgr{
 		ID:      0,
 		OdrPool: make(map[uint64]*Order),

@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
-	"github.com/rockiecn/check/internal/order"
+	"github.com/rockiecn/check/internal/check"
+	order "github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -36,6 +37,34 @@ func UnMarshOdr(buf []byte) (*order.Order, error) {
 		fmt.Println("error:", err)
 	}
 	return odr, nil
+}
+
+// serialize an order with cbor
+func MarshPchk(pchk *check.Paycheck) ([]byte, error) {
+
+	if pchk == nil {
+		return nil, errors.New("nil pchk")
+	}
+
+	b, err := cbor.Marshal(*pchk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return b, nil
+}
+
+// decode a buf into order
+func UnMarshPchk(buf []byte) (*check.Paycheck, error) {
+	if buf == nil {
+		return nil, errors.New("nil buf")
+	}
+
+	pchk := new(check.Paycheck)
+	err := cbor.Unmarshal(buf, pchk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return pchk, nil
 }
 
 // db operation

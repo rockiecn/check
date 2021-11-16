@@ -8,7 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/order"
+	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
 	"github.com/rockiecn/check/provider"
@@ -88,17 +88,18 @@ func TestSingleProSingleCheck(t *testing.T) {
 
 	// create an order
 	token := common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
-	odr := order.NewOdr(0,
-		token,
-		usrAddr,
-		proAddr,
-		utils.String2BigInt("1500000000000000000"), // order value: 1.5 eth
-		time.Now().Unix(),
-		"jack",
-		"123123123",
-		"asdf@asdf.com",
-		0,
-	)
+	odr := &mgr.Order{
+		ID:    0,
+		Token: token,
+		Value: utils.String2BigInt("1500000000000000000"), // order value: 1.5 eth
+		From:  usrAddr,
+		To:    proAddr,
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
 	if odr == nil {
 		t.Error("create order failed")
 	}

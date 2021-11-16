@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/order"
+	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -20,7 +20,7 @@ type Operator struct {
 	ContractAddr common.Address
 	Nonces       map[common.Address]uint64 // nonce for next check
 
-	OdrMgr *order.OrderMgr
+	OdrMgr *mgr.OrderMgr
 }
 
 type IOperator interface {
@@ -29,9 +29,9 @@ type IOperator interface {
 	QueryBalance() (*big.Int, error)
 	Deposit(value *big.Int) (*types.Transaction, error)
 	GetNonce(to common.Address) (uint64, error)
-	SetMgr(om *order.OrderMgr) error
-	PutOrder(odr *order.Order) error
-	GetOrder(id uint64) (*order.Order, error)
+	SetMgr(om *mgr.OrderMgr) error
+	PutOrder(odr *mgr.Order) error
+	GetOrder(id uint64) (*mgr.Order, error)
 	CreateCheck(oid uint64) (*check.Check, error)
 }
 
@@ -46,7 +46,7 @@ func New(sk string) (IOperator, error) {
 		OpSK:   sk,
 		OpAddr: opAddr,
 		Nonces: make(map[common.Address]uint64),
-		OdrMgr: order.NewMgr(),
+		OdrMgr: mgr.New(),
 	}
 
 	return op, nil
@@ -217,7 +217,7 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 }
 
 // set a manager for operator
-func (op *Operator) SetMgr(om *order.OrderMgr) error {
+func (op *Operator) SetMgr(om *mgr.OrderMgr) error {
 	if om == nil {
 		return errors.New("om nil")
 	}
@@ -226,7 +226,7 @@ func (op *Operator) SetMgr(om *order.OrderMgr) error {
 }
 
 // store an order into order pool
-func (op *Operator) PutOrder(odr *order.Order) error {
+func (op *Operator) PutOrder(odr *mgr.Order) error {
 	err := op.OdrMgr.PutOrder(odr)
 	if err != nil {
 		return err
@@ -238,7 +238,7 @@ func (op *Operator) PutOrder(odr *order.Order) error {
 }
 
 // get an order with id from order manager
-func (op *Operator) GetOrder(oid uint64) (*order.Order, error) {
+func (op *Operator) GetOrder(oid uint64) (*mgr.Order, error) {
 	if op.OdrMgr.OdrPool[oid] == nil {
 		return nil, errors.New("order not exist")
 	}

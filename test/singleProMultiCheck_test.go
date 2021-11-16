@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/order"
+	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
 	"github.com/rockiecn/check/provider"
@@ -108,17 +108,18 @@ func TestSingleProMultiCheck(t *testing.T) {
 	fmt.Println("-> Order ID=0, value=0.5")
 
 	// create an order
-	odr0 := order.NewOdr(0,
-		token,
-		usrAddr,
-		proAddr,
-		utils.String2BigInt("500000000000000000"), // order value: 0.5 eth
-		time.Now().Unix(),
-		"jack",
-		"123123123",
-		"asdf@asdf.com",
-		0,
-	)
+	odr0 := &mgr.Order{
+		ID:    0,
+		Token: token,
+		Value: utils.String2BigInt("500000000000000000"), // order value: 0.3 eth
+		From:  usrAddr,
+		To:    proAddr,
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
 	if odr0 == nil {
 		t.Fatal("create order 0 failed")
 	}
@@ -157,17 +158,18 @@ func TestSingleProMultiCheck(t *testing.T) {
 	fmt.Println("-> Order ID=1, value=0.5")
 
 	// create an order
-	odr1 := order.NewOdr(1,
-		token,
-		usrAddr,
-		proAddr,
-		utils.String2BigInt("500000000000000000"), // order value: 0.5 eth
-		time.Now().Unix(),
-		"jack",
-		"123123123",
-		"asdf@asdf.com",
-		0,
-	)
+	odr1 := &mgr.Order{
+		ID:    1,
+		Token: token,
+		Value: utils.String2BigInt("500000000000000000"), // order value: 0.3 eth
+		From:  usrAddr,
+		To:    proAddr,
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
 	if odr1 == nil {
 		t.Fatal("create order 1 failed")
 	}
@@ -205,17 +207,18 @@ func TestSingleProMultiCheck(t *testing.T) {
 	fmt.Println("-> Order ID=2, value=0.5")
 
 	// create an order
-	odr2 := order.NewOdr(2,
-		token,
-		usrAddr,
-		proAddr,
-		utils.String2BigInt("500000000000000000"), // order value: 0.5 eth
-		time.Now().Unix(),
-		"jack",
-		"123123123",
-		"asdf@asdf.com",
-		0,
-	)
+	odr2 := &mgr.Order{
+		ID:    2,
+		Token: token,
+		Value: utils.String2BigInt("500000000000000000"), // order value: 0.3 eth
+		From:  usrAddr,
+		To:    proAddr,
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
 	if odr2 == nil {
 		t.Fatal("create order 2 failed")
 	}
