@@ -39,8 +39,8 @@ func UnMarshOdr(buf []byte) (*order.Order, error) {
 }
 
 // db operation
-func WriteDB(oid uint64, buf []byte) error {
-	db, err := leveldb.OpenFile("./order.db", nil)
+func WriteDB(dbfile string, oid uint64, buf []byte) error {
+	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return err
@@ -58,8 +58,8 @@ func WriteDB(oid uint64, buf []byte) error {
 }
 
 // db operation
-func ReadDB(oid uint64) ([]byte, error) {
-	db, err := leveldb.OpenFile("./order.db", nil)
+func ReadDB(dbfile string, oid uint64) ([]byte, error) {
+	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err

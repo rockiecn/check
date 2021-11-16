@@ -35,13 +35,13 @@ func TestDB(t *testing.T) {
 	}
 
 	// put into db
-	err = WriteDB(1, buf)
+	err = WriteDB("./order.db", 1, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := ReadDB(1)
+	newBuf, err := ReadDB("./order.db", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
