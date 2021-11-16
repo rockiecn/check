@@ -6,13 +6,13 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/rockiecn/check/internal/check"
-	order "github.com/rockiecn/check/internal/mgr"
+	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // serialize an order with cbor
-func MarshOdr(odr *order.Order) ([]byte, error) {
+func MarshOdr(odr *mgr.Order) ([]byte, error) {
 
 	if odr == nil {
 		return nil, errors.New("nil order")
@@ -26,12 +26,12 @@ func MarshOdr(odr *order.Order) ([]byte, error) {
 }
 
 // decode a buf into order
-func UnMarshOdr(buf []byte) (*order.Order, error) {
+func UnMarshOdr(buf []byte) (*mgr.Order, error) {
 	if buf == nil {
 		return nil, errors.New("nil buf")
 	}
 
-	odr := new(order.Order)
+	odr := new(mgr.Order)
 	err := cbor.Unmarshal(buf, odr)
 	if err != nil {
 		fmt.Println("error:", err)
