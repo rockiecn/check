@@ -26,6 +26,41 @@ type Order struct {
 	State uint8 // 标记是否已付款; 0,1 paid,2 check
 }
 
+func (odr *Order) Equal(o2 *Order) (bool, error) {
+	if odr.ID != o2.ID {
+		return false, errors.New("id not equal")
+	}
+	if odr.Token != o2.Token {
+		return false, errors.New("token not equal")
+	}
+	if odr.Value.String() != o2.Value.String() {
+		return false, errors.New("value not equal")
+	}
+	if odr.From != o2.From {
+		return false, errors.New("from not equal")
+	}
+	if odr.To != o2.To {
+		return false, errors.New("to not equal")
+	}
+	if odr.Time != o2.Time {
+		return false, errors.New("time not equal")
+	}
+	if odr.Name != o2.Name {
+		return false, errors.New("name not equal")
+	}
+	if odr.Tel != o2.Tel {
+		return false, errors.New("tel not equal")
+	}
+	if odr.Email != o2.Email {
+		return false, errors.New("email not equal")
+	}
+	if odr.State != o2.State {
+		return false, errors.New("state not equal")
+	}
+
+	return true, nil
+}
+
 type OrderMgr struct {
 	ID      uint64                  // ID used for create next order
 	OdrPool map[uint64]*Order       // id -> order

@@ -243,17 +243,3 @@ func GetGasUsed(tx *types.Transaction) (*big.Int, error) {
 		return gasWei, nil
 	}
 }
-
-// // uint64 to []byte
-// func Uint64ToByte(ui uint64) []byte {
-
-// 	b := make([]byte, 8)
-// 	binary.LittleEndian.PutUint64(b, ui)
-// 	return b
-// }
-
-// // byte to uint64
-// func ByteToUint64(b []byte) uint64 {
-// 	num := binary.LittleEndian.Uint64(b)
-// 	return num
-// }

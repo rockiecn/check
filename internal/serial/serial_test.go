@@ -1,7 +1,6 @@
 package serial
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/rockiecn/check/internal/utils"
 )
 
-func TestSerOdr(t *testing.T) {
+func TestSerialOdr(t *testing.T) {
 	odr := &mgr.Order{
 		ID:    1,
 		Token: common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"),
@@ -29,8 +28,6 @@ func TestSerOdr(t *testing.T) {
 		t.Fatal("create order failed")
 	}
 
-	fmt.Printf("original order:\n%v\n", odr)
-
 	// marshal order
 	buf, err := MarshOdr(odr)
 	if err != nil {
@@ -38,13 +35,13 @@ func TestSerOdr(t *testing.T) {
 	}
 
 	// put into db
-	err = WriteDB("./order.db", 1, buf)
+	err = WriteDB("./test_order.db", 1, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := ReadDB("./order.db", 1)
+	newBuf, err := ReadDB("./test_order.db", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,10 +52,13 @@ func TestSerOdr(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Printf("unmarshaled order read from db:\n%v\n", newOdr)
+	eq, err := odr.Equal(newOdr)
+	if !eq {
+		t.Fatal(err)
+	}
 }
 
-func TestSerPchk(t *testing.T) {
+func TestSerialPchk(t *testing.T) {
 	pchk := &check.Paycheck{
 		Check: &check.Check{
 			Value:        utils.String2BigInt("100000000000000000000"),
@@ -74,9 +74,6 @@ func TestSerPchk(t *testing.T) {
 		PaycheckSig: utils.String2Byte("b87d34cbb5ce832d8f3e6533fde6140d3e4562428eb0fa9e10dc1b29230a03401051d928f9a2f8ca0cf390e44449d7f83bf58e6003489d5d61ede2e2ad86990801"),
 	}
 
-	fmt.Printf("original pchk:\n%v\n", pchk)
-	fmt.Printf("original chk:\n%v\n", pchk.Check)
-
 	// marshal pchk
 	buf, err := MarshPchk(pchk)
 	if err != nil {
@@ -84,13 +81,13 @@ func TestSerPchk(t *testing.T) {
 	}
 
 	// put into db
-	err = WriteDB("./pchk.db", 1, buf)
+	err = WriteDB("./test_pchk.db", 1, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := ReadDB("./pchk.db", 1)
+	newBuf, err := ReadDB("./test_pchk.db", 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,6 +98,8 @@ func TestSerPchk(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Printf("unmarshaled pchk read from db:\n%v\n", newPchk)
-	fmt.Printf("unmarshaled chk:\n%v\n", pchk.Check)
+	eq, err := pchk.Equal(newPchk)
+	if !eq {
+		t.Fatal(err)
+	}
 }

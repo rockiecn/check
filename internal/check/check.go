@@ -1,6 +1,7 @@
 package check
 
 import (
+	"bytes"
 	"errors"
 	"math/big"
 
@@ -170,6 +171,42 @@ func (pchk *Paycheck) Serialize() []byte {
 	)
 
 	return hash
+}
+
+// equal
+func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
+	if pchk.Check.Value.Cmp(p2.Check.Value) != 0 {
+		return false, errors.New("value not equal")
+	}
+	if pchk.Check.TokenAddr != p2.Check.TokenAddr {
+		return false, errors.New("token not equal")
+	}
+	if pchk.Check.Nonce != p2.Check.Nonce {
+		return false, errors.New("nonce not equal")
+	}
+	if pchk.Check.FromAddr != p2.Check.FromAddr {
+		return false, errors.New("from not equal")
+	}
+	if pchk.Check.ToAddr != p2.Check.ToAddr {
+		return false, errors.New("to not equal")
+	}
+	if pchk.Check.OpAddr != p2.Check.OpAddr {
+		return false, errors.New("op not equal")
+	}
+	if pchk.Check.ContractAddr != p2.Check.ContractAddr {
+		return false, errors.New("contrAddr not equal")
+	}
+	if !bytes.Equal(pchk.Check.CheckSig, p2.Check.CheckSig) {
+		return false, errors.New("check sig not equal")
+	}
+	if pchk.PayValue.String() != p2.PayValue.String() {
+		return false, errors.New("pay value not equal")
+	}
+	if !bytes.Equal(pchk.PaycheckSig, p2.PaycheckSig) {
+		return false, errors.New("paycheck sig not equal")
+	}
+
+	return true, nil
 }
 
 type BatchCheck struct {
