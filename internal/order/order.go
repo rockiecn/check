@@ -1,16 +1,11 @@
 package order
 
 import (
-	"encoding/binary"
 	"errors"
-	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/fxamacker/cbor/v2"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // order info
@@ -22,7 +17,7 @@ type Order struct {
 	From  common.Address // user地址
 	To    common.Address // provider地址
 
-	Time time.Time // 订单提交时间
+	Time int64 // 订单提交时间
 
 	Name  string // 购买人姓名
 	Tel   string // 购买人联系方式
@@ -44,7 +39,7 @@ func NewOdr(
 	from common.Address,
 	to common.Address,
 	value *big.Int,
-	t time.Time,
+	t int64,
 	name string,
 	tel string,
 	email string,
@@ -133,70 +128,4 @@ func (odrMgr *OrderMgr) UserPay(oid uint64) {
 	// set state paid after user pay money
 	// generate a check for user
 	// set check to odr.Check
-}
-
-// serialize an order with cbor
-func (odrMgr *OrderMgr) MarshOdr(odr *Order) ([]byte, error) {
-
-	if odr == nil {
-		return nil, errors.New("nil order")
-	}
-
-	b, err := cbor.Marshal(*odr)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	return b, nil
-}
-
-// decode a buf into an order
-func (odrMgr *OrderMgr) UnMarshOdr(buf []byte) (*Order, error) {
-	if buf == nil {
-		return nil, errors.New("nil buf")
-	}
-
-	odr := new(Order)
-	err := cbor.Unmarshal(buf, odr)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	return odr, nil
-}
-
-func (odrMgr *OrderMgr) WriteDB(oid uint64, buf []byte) error {
-	db, err := leveldb.OpenFile("./order.db", nil)
-	if err != nil {
-		fmt.Println("open db error: ", err)
-		return err
-	}
-	defer db.Close()
-
-	// uint64 to []byte
-	k := make([]byte, 8)
-	binary.LittleEndian.PutUint64(k, oid)
-
-	err = db.Put(k, buf, nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (odrMgr *OrderMgr) ReadDB(oid uint64) ([]byte, error) {
-	db, err := leveldb.OpenFile("./order.db", nil)
-	if err != nil {
-		fmt.Println("open db error: ", err)
-		return nil, err
-	}
-	defer db.Close()
-
-	// uint64 to []byte
-	k := make([]byte, 8)
-	binary.LittleEndian.PutUint64(k, oid)
-
-	buf, err := db.Get(k, nil)
-	if err != nil {
-		return nil, err
-	}
-	return buf, nil
 }

@@ -93,7 +93,7 @@ func TestSingleProSingleCheck(t *testing.T) {
 		usrAddr,
 		proAddr,
 		utils.String2BigInt("1500000000000000000"), // order value: 1.5 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",

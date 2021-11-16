@@ -88,7 +88,7 @@ func MakeAuth(
 	return auth, nil
 }
 
-func Uint64ToBytes(i uint64) []byte {
+func Uint64ToByte(i uint64) []byte {
 	var buf = make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(i))
 	return buf
@@ -243,3 +243,17 @@ func GetGasUsed(tx *types.Transaction) (*big.Int, error) {
 		return gasWei, nil
 	}
 }
+
+// // uint64 to []byte
+// func Uint64ToByte(ui uint64) []byte {
+
+// 	b := make([]byte, 8)
+// 	binary.LittleEndian.PutUint64(b, ui)
+// 	return b
+// }
+
+// // byte to uint64
+// func ByteToUint64(b []byte) uint64 {
+// 	num := binary.LittleEndian.Uint64(b)
+// 	return num
+// }

@@ -138,7 +138,7 @@ func TestMultiUserSinglePro(t *testing.T) {
 		usrAddr0,
 		proAddr,
 		utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",
@@ -187,7 +187,7 @@ func TestMultiUserSinglePro(t *testing.T) {
 		usrAddr1,
 		proAddr,
 		utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",
@@ -235,7 +235,7 @@ func TestMultiUserSinglePro(t *testing.T) {
 		usrAddr2,
 		proAddr,
 		utils.String2BigInt("300000000000000000"), // order value: 0.5 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",

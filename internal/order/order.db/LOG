@@ -51,3 +51,49 @@
 18:07:02.977244 db@open done T·35.518487ms
 18:07:02.977318 db@close closing
 18:07:02.977369 db@close done T·50.519µs
+=============== Nov 15, 2021 (CST) ===============
+20:01:44.260890 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+20:01:44.262646 version@stat F·[3] S·834B[834B] Sc·[0.75]
+20:01:44.263177 db@open opening
+20:01:44.263731 journal@recovery F·1
+20:01:44.264004 journal@recovery recovering @11
+20:01:44.264217 version@stat F·[3] S·834B[834B] Sc·[0.75]
+20:01:44.295920 db@janitor F·5 G·0
+20:01:44.295943 db@open done T·32.25268ms
+20:01:44.295978 db@close closing
+20:01:44.296039 db@close done T·60.214µs
+=============== Nov 15, 2021 (CST) ===============
+20:01:44.296089 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+20:01:44.296178 version@stat F·[3] S·834B[834B] Sc·[0.75]
+20:01:44.296189 db@open opening
+20:01:44.296234 journal@recovery F·1
+20:01:44.296341 journal@recovery recovering @13
+20:01:44.301358 memdb@flush created L0@15 N·1 S·330B "\x01\x00\x00\x00\x00\x00\x00\x00,v7":"\x01\x00\x00\x00\x00\x00\x00\x00,v7"
+20:01:44.311518 version@stat F·[4] S·1KiB[1KiB] Sc·[1.00]
+20:01:44.326935 db@janitor F·6 G·0
+20:01:44.326964 db@open done T·30.770501ms
+20:01:44.327059 db@close closing
+20:01:44.327109 db@close done T·49.422µs
+=============== Nov 16, 2021 (CST) ===============
+09:49:10.048784 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+09:49:10.048969 version@stat F·[4] S·1KiB[1KiB] Sc·[1.00]
+09:49:10.048986 db@open opening
+09:49:10.049025 journal@recovery F·1
+09:49:10.049289 journal@recovery recovering @16
+09:49:10.051484 version@stat F·[4] S·1KiB[1KiB] Sc·[1.00]
+09:49:10.065418 db@janitor F·6 G·0
+09:49:10.065439 db@open done T·16.44554ms
+09:49:10.065471 db@close closing
+09:49:10.065546 db@close done T·73.812µs
+=============== Nov 16, 2021 (CST) ===============
+09:49:10.065601 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+09:49:10.065691 version@stat F·[4] S·1KiB[1KiB] Sc·[1.00]
+09:49:10.065702 db@open opening
+09:49:10.065746 journal@recovery F·1
+09:49:10.065993 journal@recovery recovering @18
+09:49:10.073580 memdb@flush created L0@20 N·1 S·279B "\x01\x00\x00\x00\x00\x00\x00\x00,v9":"\x01\x00\x00\x00\x00\x00\x00\x00,v9"
+09:49:10.074600 version@stat F·[5] S·1KiB[1KiB] Sc·[1.25]
+09:49:10.107656 db@janitor F·7 G·0
+09:49:10.107677 db@open done T·41.97048ms
+09:49:10.107761 db@close closing
+09:49:10.107801 db@close done T·39.499µs

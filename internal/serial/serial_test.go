@@ -1,4 +1,4 @@
-package order
+package serial
 
 import (
 	"fmt"
@@ -6,17 +6,17 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rockiecn/check/internal/order"
 	"github.com/rockiecn/check/internal/utils"
 )
 
 func TestDB(t *testing.T) {
-	mgr := NewMgr()
-	odr := NewOdr(1,
+	odr := order.NewOdr(1,
 		common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"),
 		common.HexToAddress("0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
 		common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 		utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",
@@ -29,25 +29,25 @@ func TestDB(t *testing.T) {
 	fmt.Printf("original order:\n%v\n", odr)
 
 	// marshal order
-	buf, err := mgr.MarshOdr(odr)
+	buf, err := MarshOdr(odr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// put into db
-	err = mgr.WriteDB(1, buf)
+	err = WriteDB(1, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := mgr.ReadDB(1)
+	newBuf, err := ReadDB(1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// unmarshal order
-	newOdr, err := mgr.UnMarshOdr(newBuf)
+	newOdr, err := UnMarshOdr(newBuf)
 	if err != nil {
 		t.Fatal(err)
 	}

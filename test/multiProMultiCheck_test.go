@@ -49,7 +49,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 		Usr.UserAddr,
 		Pro0.ProviderAddr,
 		utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",
@@ -83,7 +83,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 		Usr.UserAddr,
 		Pro1.ProviderAddr,
 		utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",
@@ -117,7 +117,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 		Usr.UserAddr,
 		Pro2.ProviderAddr,
 		utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		time.Now(),
+		time.Now().Unix(),
 		"jack",
 		"123123123",
 		"asdf@asdf.com",
