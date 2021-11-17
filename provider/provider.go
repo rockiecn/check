@@ -52,7 +52,7 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 	}
 
 	// check nonce shuould larger than contract nonce
-	contractNonce, err := utils.GetCtNonce(pchk.Check.ContractAddr, pro.ProviderAddr)
+	contractNonce, err := utils.GetCtNonce(pchk.Check.CtrAddr, pro.ProviderAddr)
 	if err != nil {
 		return false, err
 	}
@@ -106,7 +106,7 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 
 	for k, v := range pro.Pool {
 		// get current nonce in contract
-		ctrNonce, err := utils.GetCtNonce(v.Check.ContractAddr, pro.ProviderAddr)
+		ctrNonce, err := utils.GetCtNonce(v.Check.CtrAddr, pro.ProviderAddr)
 		if err != nil {
 			return nil, err
 		}
@@ -140,7 +140,7 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 	}
 
 	// get contract instance from address
-	cashInstance, err := cash.NewCash(pc.Check.ContractAddr, ethClient)
+	cashInstance, err := cash.NewCash(pc.Check.CtrAddr, ethClient)
 	if err != nil {
 		return nil, errors.New("newcash failed")
 	}
@@ -148,14 +148,14 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 	// type convertion, from pc to cashpc for contract
 	cashpc := cash.Paycheck{
 		Check: cash.Check{
-			Value:        pc.Check.Value,
-			TokenAddr:    pc.Check.TokenAddr,
-			Nonce:        pc.Check.Nonce,
-			FromAddr:     pc.Check.FromAddr,
-			ToAddr:       pc.Check.ToAddr,
-			OpAddr:       pc.Check.OpAddr,
-			ContractAddr: pc.Check.ContractAddr,
-			CheckSig:     pc.Check.CheckSig,
+			Value:     pc.Check.Value,
+			TokenAddr: pc.Check.TokenAddr,
+			Nonce:     pc.Check.Nonce,
+			FromAddr:  pc.Check.FromAddr,
+			ToAddr:    pc.Check.ToAddr,
+			OpAddr:    pc.Check.OpAddr,
+			CtrAddr:   pc.Check.CtrAddr,
+			CheckSig:  pc.Check.CheckSig,
 		},
 		PayValue:    pc.PayValue,
 		PaycheckSig: pc.PaycheckSig,

@@ -15,10 +15,10 @@ import (
 )
 
 type Operator struct {
-	OpSK         string
-	OpAddr       common.Address
-	ContractAddr common.Address
-	Nonces       map[common.Address]uint64 // nonce for next check
+	OpSK    string
+	OpAddr  common.Address
+	CtrAddr common.Address
+	Nonces  map[common.Address]uint64 // nonce for next check
 
 	OdrMgr *mgr.OrderMgr
 }
@@ -33,6 +33,7 @@ type IOperator interface {
 	PutOrder(odr *mgr.Order) error
 	GetOrder(id uint64) (*mgr.Order, error)
 	CreateCheck(oid uint64) (*check.Check, error)
+	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
 
 // create an operator without contract.
@@ -101,7 +102,7 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 	auth.From = op.OpAddr
 
 	// get contract instance from address
-	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	cashInstance, err := cash.NewCash(op.CtrAddr, ethClient)
 	if err != nil {
 		return nil, errors.New("newcash failed")
 	}
@@ -116,7 +117,7 @@ func (op *Operator) QueryBalance() (*big.Int, error) {
 
 // GetNonce: get the nonce of a given provider in contract
 func (op *Operator) GetNonce(to common.Address) (uint64, error) {
-	nonce, err := utils.GetCtNonce(op.ContractAddr, to)
+	nonce, err := utils.GetCtNonce(op.CtrAddr, to)
 	if err != nil {
 		return 0, err
 	}
@@ -138,7 +139,7 @@ func (op *Operator) SetNonce(to common.Address, nonce uint64) (*types.Transactio
 	}
 
 	// get contract instance from address
-	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	cashInstance, err := cash.NewCash(op.CtrAddr, ethClient)
 	if err != nil {
 		return nil, errors.New("newcash failed")
 	}
@@ -167,7 +168,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	auth.Value = value
 
 	// get contract instance from address
-	cashInstance, err := cash.NewCash(op.ContractAddr, ethClient)
+	cashInstance, err := cash.NewCash(op.CtrAddr, ethClient)
 	if err != nil {
 		return nil, errors.New("newcash failed")
 	}
@@ -195,13 +196,13 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 	nonce := op.Nonces[odr.To]
 
 	chk := &check.Check{
-		Value:        odr.Value,
-		TokenAddr:    odr.Token,
-		FromAddr:     odr.From,
-		ToAddr:       odr.To,
-		Nonce:        nonce,
-		OpAddr:       op.OpAddr,
-		ContractAddr: op.ContractAddr,
+		Value:     odr.Value,
+		TokenAddr: odr.Token,
+		FromAddr:  odr.From,
+		ToAddr:    odr.To,
+		Nonce:     nonce,
+		OpAddr:    op.OpAddr,
+		CtrAddr:   op.CtrAddr,
 	}
 
 	// signed by operator
@@ -257,6 +258,11 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 	maxNonce := uint64(0)
 
 	for _, v := range pcs {
+		// verify operator address
+		if v.Check.OpAddr != op.OpAddr {
+			return nil, errors.New("illegal operator address detected")
+		}
+
 		// verify check sig
 		ok := v.Check.Verify()
 		if !ok {
@@ -282,6 +288,7 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 		// aggregate payvalue
 		total.Add(total, v.PayValue)
 
+		// update minNonce and maxNonce
 		if v.Check.Nonce < minNonce {
 			minNonce = v.Check.Nonce
 		}
@@ -294,6 +301,7 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 	batch := new(check.BatchCheck)
 	batch.OpAddr = op.OpAddr
 	batch.ToAddr = toAddr
+	batch.CtrAddr = op.CtrAddr
 	batch.BatchValue = total
 	batch.MinNonce = minNonce
 	batch.MaxNonce = maxNonce
@@ -305,7 +313,7 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 	return batch, nil
 }
 
-// set operator' contract address
+// set operator's contract address
 func (op *Operator) SetCtrAddr(addr common.Address) {
-	op.ContractAddr = addr
+	op.CtrAddr = addr
 }

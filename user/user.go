@@ -90,7 +90,7 @@ func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Payche
 	// check each payvalue in user pool
 	for _, v := range user.Pool[proAddr] {
 		// get nonce in contract
-		ctNonce, err := utils.GetCtNonce(v.Check.ContractAddr, v.Check.ToAddr)
+		ctNonce, err := utils.GetCtNonce(v.Check.CtrAddr, v.Check.ToAddr)
 		if err != nil {
 			return nil, err
 		}

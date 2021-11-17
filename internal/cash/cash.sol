@@ -1,26 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.0;
 
-
 import "./library/Recover.sol";
 import "./library/SafeMath.sol";
 
 
 struct Check {
-    uint256 value;         // value of the check, payvalue shoud not exceed value
+    uint256 value;          // value of the check, payvalue shoud not exceed value
     address tokenAddr;      // token address, point out which token to pay
     uint64  nonce;          // nonce of the check, check's nonce should not smaller than it.
     address fromAddr;       // buyer of this check, should be check's signer
 	address toAddr;         // receiver of check's money, point out who to pay
 	address opAddr;         // operator of this cheuqe, shuould be contract's owner
-	address contractAddr;   // contract address, should be this contract
-    bytes   checkSig;         // signer of this signature should be operator.
+	address ctrAddr;        // contract address, should be this contract
+    bytes   checkSig;       // signer of this signature should be operator.
 }
 
 struct Paycheck {
 	Check check;
     uint256 payValue;       // money to pay, should not exceed value
     bytes paycheckSig;      // signer of this signature should be user.
+}
+
+struct BatchCheck  {
+    address opAddr;      // operator address
+	address toAddr;      // 存储节点号
+	address ctrAddr;     // 合约地址
+	address tokenAddr;
+	uint256 batchValue;  // 聚合后的支票面额
+	uint64 minNonce;     // 聚合的nonce最小值
+	uint64 maxNonce;     // 聚合的nonce最大值
+	bytes batchSig;      // signature of operator
 }
 
 
@@ -49,7 +59,7 @@ contract Cash  {
         
         require(paycheck.check.nonce >= nodeNonce[paycheck.check.toAddr], "check.nonce too old");
         require(paycheck.payValue <= paycheck.check.value, "payvalue should not exceed value of check.");
-        //require(paycheck.check.contractAddr == address(this), "contract address error");
+        //require(paycheck.check.CtrAddr == address(this), "contract address error");
         require(paycheck.check.toAddr == msg.sender, "caller shuould be check.toAddr");
         require(paycheck.check.opAddr == owner, "operator should be owner of this contract");
         
@@ -63,7 +73,7 @@ contract Cash  {
             paycheck.check.fromAddr,
             paycheck.check.toAddr,
             paycheck.check.opAddr,
-            paycheck.check.contractAddr
+            paycheck.check.ctrAddr
     		);
         bytes32 checkHash = keccak256(checkPack);
         address checkSigner = Recover.recover(checkHash,paycheck.check.checkSig);
@@ -81,11 +91,46 @@ contract Cash  {
         require(paycheck.check.fromAddr == paycheckSigner, "illegal paycheck sig");
         
         // pay
-        payable(paycheck.check.toAddr).transfer(paycheck.payValue); //pay value to storage
+        payable(paycheck.check.toAddr).transfer(paycheck.payValue); //pay money to storage
         emit Paid(paycheck.check.toAddr, paycheck.payValue);
         
         // update nonce after paid
         nodeNonce[paycheck.check.toAddr] = paycheck.check.nonce + 1;
+
+        return true;
+    }
+    
+
+    function withdrawBatcch(BatchCheck memory bc) public payable returns(bool) {
+        
+        require(bc.minNonce >= nodeNonce[bc.toAddr], "batch check nonce too old");
+        //require(bc.CtrAddr == address(this), "contract address error");
+        //require(bc.toAddr == msg.sender, "caller shuould be check.toAddr");
+        //require(bc.opAddr == owner, "operator should be owner of this contract");
+        
+
+        // verify check's signer
+        bytes memory bcPack = 
+        abi.encodePacked(
+            bc.opAddr,
+            bc.toAddr,
+            bc.ctrAddr, 
+            bc.tokenAddr,
+            bc.batchValue,
+            bc.minNonce,
+            bc.maxNonce
+    		);
+        bytes32 bcHash = keccak256(bcPack);
+        address bcSigner = Recover.recover(bcHash, bc.batchSig);
+        
+        require(bc.opAddr == bcSigner, "illegal bc sig");
+    	
+        // pay
+        payable(bc.toAddr).transfer(bc.batchValue); // pay money to storage
+        emit Paid(bc.toAddr, bc.batchValue);
+        
+        // update nonce after paid
+        nodeNonce[bc.toAddr] = bc.maxNonce + 1;
 
         return true;
     }

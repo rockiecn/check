@@ -11,14 +11,14 @@ import (
 )
 
 type Check struct {
-	Value        *big.Int
-	TokenAddr    common.Address
-	Nonce        uint64
-	FromAddr     common.Address
-	ToAddr       common.Address
-	OpAddr       common.Address
-	ContractAddr common.Address
-	CheckSig     []byte
+	Value     *big.Int
+	TokenAddr common.Address
+	Nonce     uint64
+	FromAddr  common.Address
+	ToAddr    common.Address
+	OpAddr    common.Address
+	CtrAddr   common.Address
+	CheckSig  []byte
 }
 
 type ICheck interface {
@@ -81,7 +81,7 @@ func (chk *Check) Serialize() []byte {
 	fromBytes := chk.FromAddr.Bytes()
 	toBytes := chk.ToAddr.Bytes()
 	operatorBytes := chk.OpAddr.Bytes()
-	contractBytes := chk.ContractAddr.Bytes()
+	contractBytes := chk.CtrAddr.Bytes()
 
 	// calc hash
 	hash := crypto.Keccak256(
@@ -99,7 +99,7 @@ func (chk *Check) Serialize() []byte {
 
 // Paycheck is an auto generated low-level Go binding around an user-defined struct.
 type Paycheck struct {
-	Check       *Check
+	*Check
 	PayValue    *big.Int
 	PaycheckSig []byte
 }
@@ -156,7 +156,7 @@ func (pchk *Paycheck) Serialize() []byte {
 	fromBytes := pchk.Check.FromAddr.Bytes()
 	toBytes := pchk.Check.ToAddr.Bytes()
 	operatorBytes := pchk.Check.OpAddr.Bytes()
-	contractBytes := pchk.Check.ContractAddr.Bytes()
+	contractBytes := pchk.Check.CtrAddr.Bytes()
 
 	// calc hash
 	hash := crypto.Keccak256(
@@ -193,7 +193,7 @@ func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
 	if pchk.Check.OpAddr != p2.Check.OpAddr {
 		return false, errors.New("op not equal")
 	}
-	if pchk.Check.ContractAddr != p2.Check.ContractAddr {
+	if pchk.Check.CtrAddr != p2.Check.CtrAddr {
 		return false, errors.New("contrAddr not equal")
 	}
 	if !bytes.Equal(pchk.Check.CheckSig, p2.Check.CheckSig) {
@@ -212,9 +212,11 @@ func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
 type BatchCheck struct {
 	OpAddr     common.Address // operator address
 	ToAddr     common.Address // 存储节点号
-	BatchValue *big.Int       // 聚合后的支票面额
-	MinNonce   uint64         // 聚合的nonce最小值
-	MaxNonce   uint64         // 聚合的nonce最大值
+	CtrAddr    common.Address // 合约地址
+	TokenAddr  common.Address
+	BatchValue *big.Int // 聚合后的支票面额
+	MinNonce   uint64   // 聚合的nonce最小值
+	MaxNonce   uint64   // 聚合的nonce最大值
 
 	BatchSig []byte // signature of operator
 }
@@ -264,6 +266,8 @@ func (bc *BatchCheck) Serialize() []byte {
 
 	opBytes := bc.OpAddr.Bytes()
 	toBytes := bc.ToAddr.Bytes()
+	ctrBytes := bc.CtrAddr.Bytes()
+	tokenBytes := bc.TokenAddr.Bytes()
 	valuePad32 := common.LeftPadBytes(bc.BatchValue.Bytes(), 32)
 	minPad8 := common.LeftPadBytes(utils.Uint64ToByte(bc.MinNonce), 8)
 	maxPad8 := common.LeftPadBytes(utils.Uint64ToByte(bc.MaxNonce), 8)
@@ -272,6 +276,8 @@ func (bc *BatchCheck) Serialize() []byte {
 	hash := crypto.Keccak256(
 		opBytes,
 		toBytes,
+		ctrBytes,
+		tokenBytes,
 		valuePad32,
 		minPad8,
 		maxPad8,

@@ -1,16 +1,105 @@
 package operator
 
-/*
 import (
-	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 )
 
+func TestBatch(t *testing.T) {
+
+	op, err := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	op.SetCtrAddr(common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"))
+
+	// create  order for each provider
+	odr0 := &mgr.Order{
+		ID:    0,
+		Token: common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"),
+		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
+		From:  common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+		To:    common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
+	if odr0 == nil {
+		t.Fatal("create order 0 failed")
+	}
+
+	fmt.Println("-> Operator Store Order")
+	// operator store order into pool
+	err = op.PutOrder(odr0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// operator get an order by id
+	odr0, err = op.GetOrder(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if odr0 == nil {
+		t.Fatal("get order failed")
+	}
+
+	fmt.Println("-> Order to Check")
+	// operator create a check from order
+	chk0, err := op.CreateCheck(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pchk0 := &check.Paycheck{
+		Check:    chk0,
+		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
+	}
+	pchk0.Sign("7e5bfb82febc4c2c8529167104271ceec190eafdca277314912eaabdb67c6e5f") // user sk
+
+	fmt.Printf("value:%s\n", pchk0.Check.Value.String())
+	fmt.Printf("TokenAddr:%s\n", pchk0.Check.TokenAddr)
+	fmt.Printf("Nonce:%d\n", pchk0.Check.Nonce)
+	fmt.Printf("FromAddr:%s\n", pchk0.Check.FromAddr)
+	fmt.Printf("ToAddr:%s\n", pchk0.Check.ToAddr)
+	fmt.Printf("OpAddr:%s\n", pchk0.Check.OpAddr)
+	fmt.Printf("CtrAddr:%s\n", pchk0.Check.CtrAddr)
+	fmt.Printf("CheckSig:%x\n", pchk0.Check.CheckSig)
+	fmt.Printf("PayValue:%s\n", pchk0.PayValue.String())
+	fmt.Printf("PaycheckSig:%x\n", pchk0.PaycheckSig)
+
+	pchk1 := &check.Paycheck{
+		Check:    chk0,
+		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
+	}
+	pchk1.Sign("7e5bfb82febc4c2c8529167104271ceec190eafdca277314912eaabdb67c6e5f") // user sk
+
+	// aggregate
+	pchks := []*check.Paycheck{pchk0, pchk1}
+	bc, err := op.Aggregate(pchks)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fmt.Println("batch check:")
+	fmt.Printf("opaddr:%s\n", bc.OpAddr)
+	fmt.Printf("toaddr:%s\n", bc.ToAddr)
+	fmt.Printf("CtrAddr:%s\n", bc.CtrAddr)
+	fmt.Printf("TokenAddr:%s\n", bc.TokenAddr)
+	fmt.Printf("BatchValue:%s\n", bc.BatchValue.String())
+	fmt.Printf("MinNonce:%d\n", bc.MinNonce)
+	fmt.Printf("MaxNonce:%d\n", bc.MaxNonce)
+	fmt.Printf("sig:%x\n", bc.BatchSig)
+}
+
+/*
 var globalOp *Operator
 
 // everything ok
@@ -25,7 +114,7 @@ func TestAggregateOK(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			CheckSig:     utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 		},
 		PayValue:    utils.String2BigInt("1000000000000000000"),
@@ -41,7 +130,7 @@ func TestAggregateOK(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			CheckSig:     utils.String2Byte("08e76a9bce17997ddfec0926c89b6473798dae9ac047f5214082c094d1ae2939238206d5236c321cd4a8fab42133db38ba54d342a9ffb76b48cf0467fceebbdf01"),
 		},
 		PayValue:    utils.String2BigInt("2000000000000000000"),
@@ -57,7 +146,7 @@ func TestAggregateOK(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			CheckSig:     utils.String2Byte("584cca0e6eed3558bd07e1ab40206ecc83dc005ccad16ea9d97586726ec43aeb486a6599e1c77b345ce73c4f7f4c26e78230b752a3f3e42de62c9da261f5923e00"),
 		},
 		PayValue:    utils.String2BigInt("3000000000000000000"),
@@ -115,7 +204,7 @@ func TestAggregateCheckVerify(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			// changed for test
 			CheckSig: utils.String2Byte("444f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 		},
@@ -145,7 +234,7 @@ func TestAggregatePayCheckVerify(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			// changed for test
 			CheckSig: utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 		},
@@ -175,7 +264,7 @@ func TestAggregatePayValue(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			CheckSig:     utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 		},
 		PayValue:    utils.String2BigInt("200000000000000000000"), // larger than value
@@ -202,7 +291,7 @@ func TestAggregateToAddressIdentical(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			CheckSig:     utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 		},
 		PayValue:    utils.String2BigInt("1000000000000000000"),
@@ -218,7 +307,7 @@ func TestAggregateToAddressIdentical(t *testing.T) {
 			FromAddr:     common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
 			ToAddr:       common.HexToAddress("3320993Bc481177ec7E8f571ceCaE8A9e22C02db"),
 			OpAddr:       common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			ContractAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+			CtrAddr: common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
 			CheckSig:     utils.String2Byte("17d8a014f938995220e861feb51befc2a8bfb8430d91e26ff152b35e2027385b5745c0a89deb5212b811afc9bf4887c53b15f76dade32e48d1e361f682fb208000"),
 		},
 		PayValue:    utils.String2BigInt("2000000000000000000"),
