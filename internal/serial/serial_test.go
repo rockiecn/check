@@ -10,6 +10,14 @@ import (
 	"github.com/rockiecn/check/internal/utils"
 )
 
+// test for serial order
+// Process:
+// 1.create an order
+// 2.marshal the order
+// 3.store serialized order into db
+// 4.read it from db
+// 5.unmarshal it back to a new order
+// 6.check if old order identical to new order
 func TestSerialOdr(t *testing.T) {
 	odr := &mgr.Order{
 		ID:    1,
@@ -58,6 +66,14 @@ func TestSerialOdr(t *testing.T) {
 	}
 }
 
+// test for serial paycheck
+// Process:
+// 1.create an paycheck
+// 2.marshal the paycheck
+// 3.store serialized paycheck into db
+// 4.read it from db
+// 5.unmarshal it back to a new paycheck
+// 6.check if old paycheck identical to new paycheck
 func TestSerialPchk(t *testing.T) {
 	pchk := &check.Paycheck{
 		Check: &check.Check{
