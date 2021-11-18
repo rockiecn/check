@@ -69,7 +69,7 @@ func TestBatch(t *testing.T) {
 		State: 0,
 	}
 	if odr1 == nil {
-		t.Fatal("create order 0 failed")
+		t.Fatal("create order 1 failed")
 	}
 
 	fmt.Println("-> Operator Store Order")
@@ -93,7 +93,7 @@ func TestBatch(t *testing.T) {
 		State: 0,
 	}
 	if odr2 == nil {
-		t.Fatal("create order 0 failed")
+		t.Fatal("create order 2 failed")
 	}
 
 	fmt.Println("-> Operator Store Order")
