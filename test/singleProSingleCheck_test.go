@@ -6,12 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	comn "github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
 	"github.com/rockiecn/check/provider"
+	"github.com/rockiecn/check/test/common"
 	"github.com/rockiecn/check/user"
 )
 
@@ -39,7 +40,7 @@ func TestSingleProSingleCheck(t *testing.T) {
 	fmt.Println("send some money to operator for deploy contract")
 
 	// send 2 eth to operator
-	tx, err := utils.SendCoin(SenderSk, opAddr, utils.String2BigInt("2000000000000000000"))
+	tx, err := utils.SendCoin(common.SenderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}
@@ -87,7 +88,7 @@ func TestSingleProSingleCheck(t *testing.T) {
 	fmt.Println("<< New Order >>")
 
 	// create an order
-	token := common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
+	token := comn.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
 	odr := &mgr.Order{
 		ID:    0,
 		Token: token,
@@ -227,7 +228,7 @@ func TestSingleProSingleCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("now send 1 eth to provider")
-	tx, err = utils.SendCoin(SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(common.SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Error(err)
 	}

@@ -37,6 +37,7 @@ struct BatchCheck  {
 contract Cash  {
     using SafeMath for uint256;
     
+    event Pos(uint256);
     event Received(address, uint256);
     event Paid(address, uint256);
     
@@ -101,12 +102,16 @@ contract Cash  {
     }
     
 
-    function withdrawBatcch(BatchCheck memory bc) public payable returns(bool) {
+    function withdrawBatch(BatchCheck memory bc) public payable returns(bool) {
         
         require(bc.minNonce >= nodeNonce[bc.toAddr], "batch check nonce too old");
-        //require(bc.CtrAddr == address(this), "contract address error");
-        //require(bc.toAddr == msg.sender, "caller shuould be check.toAddr");
-        //require(bc.opAddr == owner, "operator should be owner of this contract");
+        emit Pos(1);
+        require(bc.ctrAddr == address(this), "contract address error");
+        emit Pos(2);
+        require(bc.toAddr == msg.sender, "caller shuould be check.toAddr");
+        emit Pos(3);
+        require(bc.opAddr == owner, "operator should be owner of this contract");
+        emit Pos(4);
         
 
         // verify check's signer
@@ -124,6 +129,7 @@ contract Cash  {
         address bcSigner = Recover.recover(bcHash, bc.batchSig);
         
         require(bc.opAddr == bcSigner, "illegal bc sig");
+        emit Pos(5);
     	
         // pay
         payable(bc.toAddr).transfer(bc.batchValue); // pay money to storage

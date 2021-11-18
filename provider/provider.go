@@ -170,6 +170,50 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 	return tx, nil
 }
 
+// CallApplyCheque - send tx to contract to call apply cheque method.
+func (pro *Provider) WithdrawBatch(bc *check.BatchCheck) (tx *types.Transaction, err error) {
+
+	// connect
+	ethClient, err := utils.GetClient(pro.Host)
+	if err != nil {
+		return nil, errors.New("failed to dial geth")
+	}
+	defer ethClient.Close()
+
+	// auth
+	auth, err := utils.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
+	if err != nil {
+		return nil, errors.New("make auth failed")
+	}
+
+	// get contract instance from address
+	cashInstance, err := cash.NewCash(bc.CtrAddr, ethClient)
+	if err != nil {
+		return nil, errors.New("newcash failed")
+	}
+
+	// type convertion, from pc to cashbc for contract
+	cashbc := cash.BatchCheck{
+		OpAddr:     bc.OpAddr,
+		ToAddr:     bc.ToAddr,
+		CtrAddr:    bc.CtrAddr,
+		TokenAddr:  bc.TokenAddr,
+		BatchValue: bc.BatchValue,
+		MinNonce:   bc.MinNonce,
+		MaxNonce:   bc.MaxNonce,
+		BatchSig:   bc.BatchSig,
+	}
+
+	tx, err = cashInstance.WithdrawBatch(auth, cashbc)
+	if err != nil {
+		return nil, errors.New("tx failed")
+	}
+
+	//fmt.Println("Mine a block to complete.")
+
+	return tx, nil
+}
+
 // query provider balance
 func (pro *Provider) QueryBalance() (*big.Int, error) {
 	ethClient, err := utils.GetClient(utils.HOST)

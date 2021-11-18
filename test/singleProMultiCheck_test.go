@@ -11,6 +11,7 @@ import (
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
 	"github.com/rockiecn/check/provider"
+	"github.com/rockiecn/check/test/common"
 	"github.com/rockiecn/check/user"
 )
 
@@ -59,7 +60,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	fmt.Println("-> send some money to operator for deploy contract")
 
 	// send 2 eth to operator
-	tx, err := utils.SendCoin(SenderSk, opAddr, utils.String2BigInt("2000000000000000000"))
+	tx, err := utils.SendCoin(common.SenderSk, opAddr, utils.String2BigInt("2000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	// create an order
 	odr0 := &mgr.Order{
 		ID:    0,
-		Token: token,
+		Token: common.Token,
 		Value: utils.String2BigInt("500000000000000000"), // order value: 0.3 eth
 		From:  usrAddr,
 		To:    proAddr,
@@ -160,7 +161,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	// create an order
 	odr1 := &mgr.Order{
 		ID:    1,
-		Token: token,
+		Token: common.Token,
 		Value: utils.String2BigInt("500000000000000000"), // order value: 0.3 eth
 		From:  usrAddr,
 		To:    proAddr,
@@ -209,7 +210,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	// create an order
 	odr2 := &mgr.Order{
 		ID:    2,
-		Token: token,
+		Token: common.Token,
 		Value: utils.String2BigInt("500000000000000000"), // order value: 0.3 eth
 		From:  usrAddr,
 		To:    proAddr,
@@ -417,7 +418,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("-> send 1 eth to provider for withdraw")
-	tx, err = utils.SendCoin(SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(common.SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -490,7 +491,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("-> send 1 eth to provider")
-	tx, err = utils.SendCoin(SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(common.SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -612,7 +613,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("-> send 1 eth to provider")
-	tx, err = utils.SendCoin(SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(common.SenderSk, proAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}

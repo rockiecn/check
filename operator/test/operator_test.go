@@ -1,31 +1,43 @@
-package operator
+package test
 
 import (
 	"fmt"
+	"math/big"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/rockiecn/check/test/common"
 )
 
+// Process:
+// 1.init a operator with a contract deployed for it
+// 2.init a user
+// 3.init a provider
+// 4.create 3 orders each has value 0.3 eth
+// 5.generate 3 paychecks from each order with payvalue 0.1 eth
+// 6.create a batch check with the 3 paychecks
+// 7.call withdraw batch to get 0.3 eth
+// 8.check the balance of provider, extra 0.2 eth for provider expected
+// 9.check the nonce in contract is now maxNonce + 1
 func TestBatch(t *testing.T) {
 
-	op, err := New("503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb")
-	if err != nil {
-		t.Fatal(err)
-	}
-	op.SetCtrAddr(common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"))
+	fmt.Println("-> Init Operator")
+	op := common.InitOperator(t)
+	fmt.Println("-> Init User")
+	usr := common.InitUser(t)
+	fmt.Println("-> Init Provider")
+	pro := common.InitPro(t)
 
 	// create  order for each provider
 	odr0 := &mgr.Order{
 		ID:    0,
-		Token: common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"),
+		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		From:  common.HexToAddress("0xAb8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
-		To:    common.HexToAddress("0x4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+		From:  usr.UserAddr,
+		To:    pro.ProviderAddr,
 		Time:  time.Now().Unix(),
 		Name:  "jack",
 		Tel:   "123123123",
@@ -38,22 +50,70 @@ func TestBatch(t *testing.T) {
 
 	fmt.Println("-> Operator Store Order")
 	// operator store order into pool
-	err = op.PutOrder(odr0)
+	err := op.PutOrder(odr0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// operator get an order by id
-	odr0, err = op.GetOrder(0)
+
+	// create  order for each provider
+	odr1 := &mgr.Order{
+		ID:    1,
+		Token: common.Token,
+		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
+		From:  usr.UserAddr,
+		To:    pro.ProviderAddr,
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
+	if odr1 == nil {
+		t.Fatal("create order 0 failed")
+	}
+
+	fmt.Println("-> Operator Store Order")
+	// operator store order into pool
+	err = op.PutOrder(odr1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if odr0 == nil {
-		t.Fatal("get order failed")
+
+	// create  order for each provider
+	odr2 := &mgr.Order{
+		ID:    2,
+		Token: common.Token,
+		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
+		From:  usr.UserAddr,
+		To:    pro.ProviderAddr,
+		Time:  time.Now().Unix(),
+		Name:  "jack",
+		Tel:   "123123123",
+		Email: "asdf@asdf.com",
+		State: 0,
+	}
+	if odr2 == nil {
+		t.Fatal("create order 0 failed")
+	}
+
+	fmt.Println("-> Operator Store Order")
+	// operator store order into pool
+	err = op.PutOrder(odr2)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	fmt.Println("-> Order to Check")
-	// operator create a check from order
+	// operator create 2 checks from orders
 	chk0, err := op.CreateCheck(0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chk1, err := op.CreateCheck(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chk2, err := op.CreateCheck(2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,41 +122,72 @@ func TestBatch(t *testing.T) {
 		Check:    chk0,
 		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
 	}
-	pchk0.Sign("7e5bfb82febc4c2c8529167104271ceec190eafdca277314912eaabdb67c6e5f") // user sk
-
-	fmt.Printf("value:%s\n", pchk0.Check.Value.String())
-	fmt.Printf("TokenAddr:%s\n", pchk0.Check.TokenAddr)
-	fmt.Printf("Nonce:%d\n", pchk0.Check.Nonce)
-	fmt.Printf("FromAddr:%s\n", pchk0.Check.FromAddr)
-	fmt.Printf("ToAddr:%s\n", pchk0.Check.ToAddr)
-	fmt.Printf("OpAddr:%s\n", pchk0.Check.OpAddr)
-	fmt.Printf("CtrAddr:%s\n", pchk0.Check.CtrAddr)
-	fmt.Printf("CheckSig:%x\n", pchk0.Check.CheckSig)
-	fmt.Printf("PayValue:%s\n", pchk0.PayValue.String())
-	fmt.Printf("PaycheckSig:%x\n", pchk0.PaycheckSig)
+	pchk0.Sign(usr.UserSK) // user sk
 
 	pchk1 := &check.Paycheck{
-		Check:    chk0,
+		Check:    chk1,
 		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
 	}
-	pchk1.Sign("7e5bfb82febc4c2c8529167104271ceec190eafdca277314912eaabdb67c6e5f") // user sk
+	pchk1.Sign(usr.UserSK) // user sk
+
+	pchk2 := &check.Paycheck{
+		Check:    chk2,
+		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
+	}
+	pchk2.Sign(usr.UserSK) // user sk
 
 	// aggregate
-	pchks := []*check.Paycheck{pchk0, pchk1}
+	pchks := []*check.Paycheck{pchk0, pchk1, pchk2}
 	bc, err := op.Aggregate(pchks)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println("batch check:")
-	fmt.Printf("opaddr:%s\n", bc.OpAddr)
-	fmt.Printf("toaddr:%s\n", bc.ToAddr)
-	fmt.Printf("CtrAddr:%s\n", bc.CtrAddr)
-	fmt.Printf("TokenAddr:%s\n", bc.TokenAddr)
-	fmt.Printf("BatchValue:%s\n", bc.BatchValue.String())
-	fmt.Printf("MinNonce:%d\n", bc.MinNonce)
-	fmt.Printf("MaxNonce:%d\n", bc.MaxNonce)
-	fmt.Printf("sig:%x\n", bc.BatchSig)
+	// send 1 eth to provider
+	fmt.Println("-> send 1 eth to provider")
+	tx, err := utils.SendCoin(common.SenderSk, pro.ProviderAddr, utils.String2BigInt("1000000000000000000"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	utils.WaitForMiner(tx)
+
+	b1, err := pro.QueryBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("balance before withdraw:", b1)
+
+	// withdraw batch
+	tx, err = pro.WithdrawBatch(bc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	utils.WaitForMiner(tx)
+
+	gasUsed, err := utils.GetGasUsed(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b2, err := pro.QueryBalance()
+	if err != nil {
+		t.Fatal(err)
+	}
+	fmt.Println("balance after withdraw:", b2)
+
+	// need add used gas for withdraw tx
+	delta := new(big.Int).Sub(b2, b1)
+	delta.Add(delta, gasUsed)
+
+	want := utils.String2BigInt("300000000000000000")
+
+	// check result
+	if delta.Cmp(want) != 0 {
+		t.Fatal("withdrawed money not equal total payvalue")
+	} else {
+		fmt.Println("OK- withdrawed money equal total payvalue")
+	}
+
 }
 
 /*

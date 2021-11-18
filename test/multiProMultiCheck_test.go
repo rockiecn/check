@@ -9,6 +9,7 @@ import (
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/rockiecn/check/test/common"
 )
 
 // 3 providers involved
@@ -33,20 +34,20 @@ func TestMultiProMultiCheck(t *testing.T) {
 	fmt.Println("<< Initialize >>")
 
 	fmt.Println("-> Init Operator")
-	Op := InitOperator(t)
+	Op := common.InitOperator(t)
 
 	fmt.Println("-> Init User")
-	Usr := InitUser(t)
+	Usr := common.InitUser(t)
 
 	fmt.Println("-> Init 3 Providers ")
-	Pro0 := InitPro(t)
-	Pro1 := InitPro(t)
-	Pro2 := InitPro(t)
+	Pro0 := common.InitPro(t)
+	Pro1 := common.InitPro(t)
+	Pro2 := common.InitPro(t)
 
 	fmt.Println("-> Init Order ID=0, value=0.3")
 	odr0 := &mgr.Order{
 		ID:    0,
-		Token: token,
+		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
 		From:  Usr.UserAddr,
 		To:    Pro0.ProviderAddr,
@@ -81,7 +82,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 	fmt.Println("-> Init Order ID=1, value=0.3")
 	odr1 := &mgr.Order{
 		ID:    1,
-		Token: token,
+		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
 		From:  Usr.UserAddr,
 		To:    Pro1.ProviderAddr,
@@ -116,7 +117,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 	fmt.Println("-> Init Order ID=2, value=0.3")
 	odr2 := &mgr.Order{
 		ID:    2,
-		Token: token,
+		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
 		From:  Usr.UserAddr,
 		To:    Pro2.ProviderAddr,
@@ -268,7 +269,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("-> send 1 eth to provider for withdraw")
-	tx, err := utils.SendCoin(SenderSk, Pro0.ProviderAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err := utils.SendCoin(common.SenderSk, Pro0.ProviderAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -341,7 +342,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("-> send 1 eth to provider")
-	tx, err = utils.SendCoin(SenderSk, Pro1.ProviderAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(common.SenderSk, Pro1.ProviderAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -415,7 +416,7 @@ func TestMultiProMultiCheck(t *testing.T) {
 
 	// send 1 eth to provider
 	fmt.Println("-> send 1 eth to provider")
-	tx, err = utils.SendCoin(SenderSk, Pro2.ProviderAddr, utils.String2BigInt("1000000000000000000"))
+	tx, err = utils.SendCoin(common.SenderSk, Pro2.ProviderAddr, utils.String2BigInt("1000000000000000000"))
 	if err != nil {
 		t.Fatal(err)
 	}
