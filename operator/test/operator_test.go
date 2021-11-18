@@ -188,6 +188,24 @@ func TestBatch(t *testing.T) {
 		fmt.Println("OK- withdrawed money equal total payvalue")
 	}
 
+	// check if maxNonce correct
+	if bc.MaxNonce != 2 {
+		t.Fatal("max nonce in batch check error")
+	} else {
+		fmt.Println("OK- max nonce is right:", bc.MaxNonce)
+	}
+
+	// check contract nonce with max nonce
+	ctrNonce, err := op.GetNonce(pro.ProviderAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bc.MaxNonce+1 != ctrNonce {
+		t.Fatal("nonce in contract must be maxNonce + 1")
+	} else {
+		fmt.Println("OK- nonce in contract is equal to maxNonce + 1")
+	}
+
 }
 
 /*
