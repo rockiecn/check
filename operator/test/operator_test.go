@@ -48,7 +48,6 @@ func TestBatch(t *testing.T) {
 		t.Fatal("create order 0 failed")
 	}
 
-	fmt.Println("-> Operator Store Order")
 	// operator store order into pool
 	err := op.PutOrder(odr0)
 	if err != nil {
@@ -72,7 +71,6 @@ func TestBatch(t *testing.T) {
 		t.Fatal("create order 1 failed")
 	}
 
-	fmt.Println("-> Operator Store Order")
 	// operator store order into pool
 	err = op.PutOrder(odr1)
 	if err != nil {
@@ -96,7 +94,6 @@ func TestBatch(t *testing.T) {
 		t.Fatal("create order 2 failed")
 	}
 
-	fmt.Println("-> Operator Store Order")
 	// operator store order into pool
 	err = op.PutOrder(odr2)
 	if err != nil {
@@ -158,6 +155,7 @@ func TestBatch(t *testing.T) {
 	fmt.Println("balance before withdraw:", b1)
 
 	// withdraw batch
+	fmt.Println("-> withdraw batch check")
 	tx, err = pro.WithdrawBatch(bc)
 	if err != nil {
 		t.Fatal(err)

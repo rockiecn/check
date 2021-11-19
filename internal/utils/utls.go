@@ -142,7 +142,7 @@ func WaitForMiner(tx *types.Transaction) error {
 	}
 	defer ethClient.Close()
 
-	fmt.Println("waiting for miner.")
+	fmt.Println("Mining...")
 
 	for {
 		txReceipt, _ := ethClient.TransactionReceipt(context.Background(), tx.Hash())
