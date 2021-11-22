@@ -89,7 +89,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	}
 	fmt.Println("-> pay 0.6 eth: no check is enough(0.5 max), nil paycheck expected")
 	err = common.Pay(usr, pro, "600000000000000000", 0)
-	if err.Error() != "usable paycheck not found" {
+	if err.Error() != "user: usable paycheck not found" {
 		t.Fatal(errors.New("no paycheck should be found with enough money"))
 	}
 
