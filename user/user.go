@@ -87,25 +87,25 @@ func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Payche
 		minNonce = ^uint64(0)
 	)
 
-	// check each payvalue in user pool
+	// view each paycheck in user pool
 	for _, v := range user.Pool[proAddr] {
 		// get nonce in contract
-		ctNonce, err := utils.GetCtNonce(v.Check.CtrAddr, v.Check.ToAddr)
+		ctNonce, err := utils.GetCtNonce(v.CtrAddr, v.ToAddr)
 		if err != nil {
 			return nil, err
 		}
 		// nonce too old
-		if v.Check.Nonce < ctNonce {
+		if v.Nonce < ctNonce {
 			continue
 		}
 
 		// remain value must no less than dataValue
-		remain := new(big.Int).Sub(v.Check.Value, v.PayValue)
+		remain := new(big.Int).Sub(v.Value, v.PayValue)
 		if remain.Cmp(dataValue) < 0 {
 			continue
 		} else {
 			// got one
-			if v.Check.Nonce < minNonce {
+			if v.Nonce < minNonce {
 				minNonce = v.Check.Nonce
 				theOne = v
 			} else {
@@ -116,7 +116,7 @@ func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Payche
 
 	// usable paycheck not found
 	if theOne == nil {
-		return nil, errors.New("usable paycheck not found")
+		return nil, errors.New("user: usable paycheck not found")
 	} else {
 		// a tempor paycheck for sign
 		newPchk := new(check.Paycheck)

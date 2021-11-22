@@ -2,13 +2,8 @@ package test
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
-	"time"
 
-	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/mgr"
-	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/test/common"
 )
 
@@ -31,445 +26,77 @@ import (
 // 11. provider2 withdraw, should receive 0.3 eth
 func TestMultiProMultiCheck(t *testing.T) {
 
-	fmt.Println("<< Initialize >>")
-
+	// init roles
 	fmt.Println("-> Init Operator")
-	Op := common.InitOperator(t)
-
+	op, err := common.InitOperator()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fmt.Println("-> Init User")
-	Usr := common.InitUser(t)
-
+	usr, err := common.InitUser()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fmt.Println("-> Init 3 Providers ")
-	Pro0 := common.InitPro(t)
-	Pro1 := common.InitPro(t)
-	Pro2 := common.InitPro(t)
-
-	fmt.Println("-> Init Order ID=0, value=0.3")
-	odr0 := &mgr.Order{
-		ID:    0,
-		Token: common.Token,
-		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		From:  Usr.UserAddr,
-		To:    Pro0.ProviderAddr,
-		Time:  time.Now().Unix(),
-		Name:  "jack",
-		Tel:   "123123123",
-		Email: "asdf@asdf.com",
-		State: 0,
-	}
-	if odr0 == nil {
-		t.Fatal("create order failed")
-	}
-	err := Op.PutOrder(odr0)
+	pro0, err := common.InitPro()
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("-> Order to Check")
-	// operator create a check from order
-	opChk0, err := Op.CreateCheck(0)
+	pro1, err := common.InitPro()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// simulate user receive check from operator
-	usrChk0 := new(check.Check)
-	*usrChk0 = *opChk0
-	// user store check into pool
-	err = Usr.StoreCheck(usrChk0)
+	pro2, err := common.InitPro()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println("-> Init Order ID=1, value=0.3")
-	odr1 := &mgr.Order{
-		ID:    1,
-		Token: common.Token,
-		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		From:  Usr.UserAddr,
-		To:    Pro1.ProviderAddr,
-		Time:  time.Now().Unix(),
-		Name:  "jack",
-		Tel:   "123123123",
-		Email: "asdf@asdf.com",
-		State: 0,
-	}
-	if odr1 == nil {
-		t.Fatal("create order failed")
-	}
-	err = Op.PutOrder(odr1)
+	// init 3 orders
+	fmt.Println("-> Init 3 orders")
+	err = common.InitOrder(0, usr, op, pro0, "300000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("-> Order to Check")
-	// operator create a check from order
-	opChk1, err := Op.CreateCheck(1)
+	err = common.InitOrder(1, usr, op, pro1, "300000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// simulate user receive check from operator
-	usrChk1 := new(check.Check)
-	*usrChk1 = *opChk1
-	// user store check into pool
-	err = Usr.StoreCheck(usrChk1)
+	err = common.InitOrder(2, usr, op, pro2, "300000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println("-> Init Order ID=2, value=0.3")
-	odr2 := &mgr.Order{
-		ID:    2,
-		Token: common.Token,
-		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
-		From:  Usr.UserAddr,
-		To:    Pro2.ProviderAddr,
-		Time:  time.Now().Unix(),
-		Name:  "jack",
-		Tel:   "123123123",
-		Email: "asdf@asdf.com",
-		State: 0,
-	}
-	if odr2 == nil {
-		t.Fatal("create order failed")
-	}
-	err = Op.PutOrder(odr2)
+	// pay
+	fmt.Println("-> pay 0.1 eth to provider0 with nonce 0")
+	err = common.Pay(usr, pro0, "100000000000000000", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("-> Order to Check")
-	// operator create a check from order
-	opChk2, err := Op.CreateCheck(2)
+	fmt.Println("-> pay 0.2 eth to provider1 with nonce 0")
+	err = common.Pay(usr, pro1, "200000000000000000", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// simulate user receive check from operator
-	usrChk2 := new(check.Check)
-	*usrChk2 = *opChk2
-	// user store check into pool
-	err = Usr.StoreCheck(usrChk2)
+	fmt.Println("-> pay 0.3 eth to provider2 with nonce 0")
+	err = common.Pay(usr, pro2, "300000000000000000", 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	fmt.Println("<< Pay >>")
-	fmt.Println("-> pay 0.1 eth to provider0")
-	// user generate a paycheck for paying to provider
-	// store new paycheck into user pool
-	// pay: 0.1 eth
-	userPC, err := Usr.Pay(Pro0.ProviderAddr, utils.String2BigInt(("100000000000000000")))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if userPC == nil || userPC.Check.Nonce != 0 {
-		t.Fatal("test pay 0.1 failed")
-	} else {
-		fmt.Println("OK- paycheck nonce: ", userPC.Check.Nonce)
-	}
-
-	// simulate provider receive paycheck from user
-	proPC := new(check.Paycheck)
-	*proPC = *userPC
-
-	// provider verify received paycheck
-	// datavalue: 0.1 eth
-	ok, err := Pro0.Verify(proPC, utils.String2BigInt(("100000000000000000")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok {
-		t.Fatal("provider verify paycheck failed")
-	}
-
-	// provider store a paycheck into pool
-	err = Pro0.StorePaycheck(proPC)
-	if err != nil {
-		t.Fatal("store paycheck error")
-	}
-
-	fmt.Println("-> pay 0.2 eth to provider1")
-	// pay: 0.2 eth
-	userPC, err = Usr.Pay(Pro1.ProviderAddr, utils.String2BigInt(("200000000000000000")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if userPC == nil || userPC.Check.Nonce != 0 {
-		t.Fatal("test pay 0.2 failed")
-	} else {
-		fmt.Println("OK- paycheck1 nonce: ", userPC.Check.Nonce)
-	}
-
-	// simulate provider receive paycheck from user
-	proPC = new(check.Paycheck)
-	*proPC = *userPC
-
-	// provider verify received paycheck
-	// datavalue: 0.2 eth
-	ok, err = Pro1.Verify(proPC, utils.String2BigInt(("200000000000000000")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok {
-		t.Fatal("provider verify paycheck failed")
-	}
-
-	// provider store a paycheck into pool
-	err = Pro1.StorePaycheck(proPC)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	fmt.Println("-> pay 0.3 eth to provider2")
-	// user generate a paycheck for paying to provider
-	// store new paycheck into user pool
-	// pay: 0.3 eth
-	userPC, err = Usr.Pay(Pro2.ProviderAddr, utils.String2BigInt(("300000000000000000")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if userPC == nil || userPC.Check.Nonce != 0 {
-		t.Fatal("test pay 0.3 failed")
-	} else {
-		fmt.Println("OK- paycheck2 nonce: ", userPC.Check.Nonce)
-	}
-
-	// simulate provider receive paycheck from user
-	proPC = new(check.Paycheck)
-	*proPC = *userPC
-
-	// provider verify received paycheck
-	// datavalue: 0.2 eth
-	ok, err = Pro2.Verify(proPC, utils.String2BigInt(("300000000000000000")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !ok {
-		t.Fatal("provider verify paycheck failed")
-	}
-
-	// provider store a paycheck into pool
-	err = Pro2.StorePaycheck(proPC)
-	if err != nil {
-		t.Error("store paycheck error")
-	}
-
-	fmt.Println("<< Withdraw >>")
+	// withdraw
 	fmt.Println("-> provider0 withdraw")
-	// nonce 0 expected
-	got, err := Pro0.GetNextPayable()
+	err = common.Withdraw(op, pro0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got == nil {
-		t.Fatal("nil paycheck got")
-	}
-	if got.Check.Nonce != 0 {
-		t.Fatalf("nonce=%v, nonce 0 expected\n", got.Check.Nonce)
-	} else {
-		fmt.Println("OK- withdrawed nonce: ", got.Check.Nonce)
-	}
-
-	// send 1 eth to provider
-	fmt.Println("-> send 1 eth to provider for withdraw")
-	tx, err := utils.SendCoin(common.SenderSk, Pro0.ProviderAddr, utils.String2BigInt("1000000000000000000"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
-	// query provider balance before withdraw
-	b1, err := Pro0.QueryBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	n, err := Op.GetNonce(got.Check.ToAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("nonce in contract:", n)
-
-	fmt.Printf("-> withdraw with paycheck nonce %v\n", got.Check.Nonce)
-	tx, err = Pro0.Withdraw(got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
-	//fmt.Println("tx hash:", tx.Hash())
-
-	gasUsed, err := utils.GetGasUsed(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// wait for a block be mined
-	err = utils.WaitForMiner(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// query provider balance after withdraw
-	b2, err := Pro0.QueryBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("balance before withdraw b1:", b1)
-	fmt.Println("payvalue:", got.PayValue)
-	fmt.Println("gasUsed:", gasUsed)
-	fmt.Println("balance after withdraw b2:", b2)
-	// need add used gas for withdraw tx
-	delta := new(big.Int).Sub(b2, b1)
-	delta.Add(delta, gasUsed)
-
-	if delta.Cmp(got.PayValue) != 0 {
-		t.Error("withdrawed money not equal payvalue")
-	} else {
-		fmt.Println("withdrawed money equal payvalue")
-	}
-
 	fmt.Println("-> provider1 withdraw")
-	// nonce 1 expected
-	got, err = Pro1.GetNextPayable()
+	err = common.Withdraw(op, pro1, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got == nil {
-		t.Fatal("nil paycheck got")
-	}
-	if got.Check.Nonce != 0 {
-		t.Fatalf("nonce=%v, nonce 0 expected\n", got.Check.Nonce)
-	} else {
-		fmt.Println("OK- withdrawed nonce: ", got.Check.Nonce)
-	}
-
-	// send 1 eth to provider
-	fmt.Println("-> send 1 eth to provider")
-	tx, err = utils.SendCoin(common.SenderSk, Pro1.ProviderAddr, utils.String2BigInt("1000000000000000000"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
-	// query provider balance before withdraw
-	b1, err = Pro1.QueryBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	n, err = Op.GetNonce(got.Check.ToAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("nonce in contract:", n)
-
-	fmt.Printf("-> withdraw with paycheck nonce %v\n", got.Check.Nonce)
-
-	tx, err = Pro1.Withdraw(got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
-	//fmt.Println("tx hash:", tx.Hash())
-
-	gasUsed, err = utils.GetGasUsed(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// wait for a block be mined
-	err = utils.WaitForMiner(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// query provider balance after withdraw
-	b2, err = Pro1.QueryBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("balance before withdraw b1:", b1)
-	fmt.Println("payvalue:", got.PayValue)
-	fmt.Println("gasUsed:", gasUsed)
-	fmt.Println("balance after withdraw b2:", b2)
-	// need add used gas for withdraw tx
-	delta = new(big.Int).Sub(b2, b1)
-	delta.Add(delta, gasUsed)
-
-	if delta.Cmp(got.PayValue) != 0 {
-		t.Fatal("withdrawed money not equal payvalue")
-	} else {
-		fmt.Println("OK: withdrawed money equal payvalue")
-	}
-
 	fmt.Println("-> provider2 withdraw")
-	// nonce 1 expected
-	got, err = Pro2.GetNextPayable()
+	err = common.Withdraw(op, pro2, 0)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if got == nil {
-		t.Fatal("nil paycheck got")
-	}
-	if got.Check.Nonce != 0 {
-		t.Fatalf("nonce=%v, nonce 0 expected\n", got.Check.Nonce)
-	} else {
-		fmt.Println("OK- withdrawed nonce: ", got.Check.Nonce)
-	}
-
-	// send 1 eth to provider
-	fmt.Println("-> send 1 eth to provider")
-	tx, err = utils.SendCoin(common.SenderSk, Pro2.ProviderAddr, utils.String2BigInt("1000000000000000000"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
-	// query provider balance before withdraw
-	b1, err = Pro2.QueryBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	n, err = Op.GetNonce(got.Check.ToAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("nonce in contract:", n)
-
-	fmt.Printf("-> withdraw with paycheck nonce %v\n", got.Check.Nonce)
-
-	tx, err = Pro2.Withdraw(got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
-	//fmt.Println("tx hash:", tx.Hash())
-
-	gasUsed, err = utils.GetGasUsed(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// wait for a block be mined
-	err = utils.WaitForMiner(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// query provider balance after withdraw
-	b2, err = Pro2.QueryBalance()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("balance before withdraw b1:", b1)
-	fmt.Println("payvalue:", got.PayValue)
-	fmt.Println("gasUsed:", gasUsed)
-	fmt.Println("balance after withdraw b2:", b2)
-	// need add used gas for withdraw tx
-	delta = new(big.Int).Sub(b2, b1)
-	delta.Add(delta, gasUsed)
-
-	if delta.Cmp(got.PayValue) != 0 {
-		t.Fatal("withdrawed money not equal payvalue")
-	} else {
-		fmt.Println("OK- withdrawed money equal payvalue")
 	}
 }

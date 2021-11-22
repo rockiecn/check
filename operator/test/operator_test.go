@@ -25,11 +25,20 @@ import (
 func TestBatch(t *testing.T) {
 
 	fmt.Println("-> Init Operator")
-	op := common.InitOperator(t)
+	op, err := common.InitOperator()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fmt.Println("-> Init User")
-	usr := common.InitUser(t)
+	usr, err := common.InitUser()
+	if err != nil {
+		t.Fatal(err)
+	}
 	fmt.Println("-> Init Provider")
-	pro := common.InitPro(t)
+	pro, err := common.InitPro()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// create  order for each provider
 	odr0 := &mgr.Order{
@@ -49,7 +58,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err := op.PutOrder(odr0)
+	err = op.PutOrder(odr0)
 	if err != nil {
 		t.Fatal(err)
 	}
