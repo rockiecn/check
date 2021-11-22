@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/common"
 	"github.com/rockiecn/check/internal/mgr"
 	"github.com/rockiecn/check/internal/utils"
-	"github.com/rockiecn/check/test/common"
 )
 
 // Process:

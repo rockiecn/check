@@ -1,3 +1,4 @@
+// common functions for test
 package common
 
 import (

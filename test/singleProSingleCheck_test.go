@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rockiecn/check/test/common"
+	"github.com/rockiecn/check/internal/common"
 )
 
 // a single provider involved
