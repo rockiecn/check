@@ -37,25 +37,39 @@ func TestSingleProSingleCheck(t *testing.T) {
 
 	// pay
 	fmt.Println("-> user pay 0.1 eth to provider with nonce 0")
-	err = common.Pay(usr, pro, "100000000000000000", 0)
+	n, err := common.Pay(usr, pro, "100000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> user pay 0.2 eth to provider with nonce 0")
-	err = common.Pay(usr, pro, "200000000000000000", 0)
+	n, err = common.Pay(usr, pro, "200000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> user pay 0.3 eth to provider with nonce 0")
-	err = common.Pay(usr, pro, "300000000000000000", 0)
+	n, err = common.Pay(usr, pro, "300000000000000000")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
 	// withdraw
 	fmt.Println("-> withdraw with nonce 0")
-	err = common.Withdraw(op, pro, 0)
+	n, err = common.Withdraw(op, pro)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 }

@@ -152,20 +152,16 @@ func Pay(
 	usr *user.User,
 	pro *provider.Provider,
 	v string,
-	n uint64,
-) error {
+) (uint64, error) {
 	// user generate a paycheck for paying to provider
 	// store new paycheck into user pool
 	userPC, err := usr.Pay(pro.ProviderAddr, utils.String2BigInt(v))
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	if userPC == nil {
-		return errors.New("generate nil paycheck")
-	}
-	if userPC.Nonce != n {
-		return fmt.Errorf("generated paycheck nonce error:%v", userPC.Nonce)
+		return 0, errors.New("generate nil paycheck")
 	}
 
 	// simulate provider receive paycheck from user
@@ -176,69 +172,65 @@ func Pay(
 	// datavalue: 0.1 eth
 	ok, err := pro.Verify(proPC, utils.String2BigInt(v))
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if !ok {
-		return errors.New("provider verify paycheck failed")
+		return 0, errors.New("provider verify paycheck failed")
 	}
 
 	// provider store a paycheck into pool
 	err = pro.StorePaycheck(proPC)
 	if err != nil {
-		return errors.New("store paycheck error")
+		return 0, errors.New("store paycheck error")
 	}
 
-	return nil
+	return userPC.Nonce, nil
 }
 
 func Withdraw(
 	op *operator.Operator,
 	pro *provider.Provider,
-	n uint64,
-) error {
+) (uint64, error) {
 	// nonce 0 expected
 	got, err := pro.GetNextPayable()
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if got == nil {
-		return errors.New("nil paycheck got")
-	}
-	if got.Check.Nonce != n {
-		return fmt.Errorf("nonce=%v, nonce 0 expected", got.Check.Nonce)
+		return 0, errors.New("nil paycheck got")
 	}
 
 	// query provider balance before withdraw
 	b1, err := pro.QueryBalance()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	ctNonce, err := op.GetNonce(got.ToAddr)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	fmt.Println("nonce in contract:", ctNonce)
 
 	fmt.Printf("withdrawing, nonce: %v\n", got.Nonce)
 	tx, err := pro.Withdraw(got)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = utils.WaitForMiner(tx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	gasUsed, err := utils.GetGasUsed(tx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// query provider balance after withdraw
 	b2, err := pro.QueryBalance()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// need add used gas for withdraw tx
@@ -246,9 +238,9 @@ func Withdraw(
 	newPV := big.NewInt(0).Add(delta, gasUsed)
 
 	if newPV.Cmp(got.PayValue) != 0 {
-		return errors.New("withdrawed money not equal payvalue")
+		return 0, errors.New("withdrawed money not equal payvalue")
 	}
 	fmt.Println("OK- withdrawed money equal payvalue")
 
-	return nil
+	return got.Nonce, nil
 }

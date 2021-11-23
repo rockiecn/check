@@ -20,7 +20,7 @@ import (
 // 5.generate 3 paychecks from each order with payvalue 0.1 eth
 // 6.create a batch check with the 3 paychecks
 // 7.call withdraw batch to get 0.3 eth
-// 8.check the balance of provider, extra 0.2 eth for provider expected
+// 8.check the balance of provider, extra 0.3 eth for provider expected
 // 9.check the nonce in contract is now maxNonce + 1
 func TestBatch(t *testing.T) {
 

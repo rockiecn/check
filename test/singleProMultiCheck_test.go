@@ -45,7 +45,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println("-> Init 3 Users")
+	fmt.Println("-> Init User")
 	usr, err := common.InitUser()
 	if err != nil {
 		t.Fatal(err)
@@ -68,48 +68,74 @@ func TestSingleProMultiCheck(t *testing.T) {
 
 	// pay
 	fmt.Println("-> pay 0.1 eth: check with nonce 0 should be enough")
-	err = common.Pay(usr, pro, "100000000000000000", 0)
+	n, err := common.Pay(usr, pro, "100000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> pay 0.2 eth: check with nonce 0 should be enough")
-	err = common.Pay(usr, pro, "200000000000000000", 0)
+	n, err = common.Pay(usr, pro, "200000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> pay 0.4 eth: nonce 0 is not enough, nonce 1 should be used")
-	err = common.Pay(usr, pro, "400000000000000000", 1)
+	n, err = common.Pay(usr, pro, "400000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 1 {
+		t.Fatalf("nonce %v picked, but should be 1", n)
+	}
+
 	fmt.Println("-> pay 0.2 eth: nonce 0 should be enough again(0.2 remained)")
-	err = common.Pay(usr, pro, "200000000000000000", 0)
+	n, err = common.Pay(usr, pro, "200000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> pay 0.6 eth: no check is enough(0.5 max), nil paycheck expected")
-	err = common.Pay(usr, pro, "600000000000000000", 0)
+	_, err = common.Pay(usr, pro, "600000000000000000")
 	if err.Error() != "user: usable paycheck not found" {
 		t.Fatal(errors.New("no paycheck should be found with enough money"))
 	}
 
 	// withdraw
 	fmt.Println("-> withdraw with nonce 0")
-	err = common.Withdraw(op, pro, 0)
+	n, err = common.Withdraw(op, pro)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> withdraw with nonce 1")
-	err = common.Withdraw(op, pro, 1)
+	n, err = common.Withdraw(op, pro)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("nonce %v picked, but should be 1", n)
 	}
 
 	//Pay at withdraw
 	fmt.Println("-> pay 0.1 eth: check with nonce 2 should be selected now")
-	err = common.Pay(usr, pro, "100000000000000000", 2)
+	n, err = common.Pay(usr, pro, "100000000000000000")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("nonce %v picked, but should be 2", n)
 	}
 
 	fmt.Println("Now test pay at withdraw:")
@@ -129,9 +155,12 @@ func TestSingleProMultiCheck(t *testing.T) {
 	fmt.Println("-> Now provider withdrawed this paycheck before latest paycheck received and verified.")
 
 	fmt.Println("-> third withdraw(before verify): nonce 2 expected")
-	err = common.Withdraw(op, pro, 2)
+	n, err = common.Withdraw(op, pro)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 2 {
+		t.Fatalf("nonce %v picked, but should be 2", n)
 	}
 
 	// simulate provider receive paycheck from user

@@ -68,35 +68,57 @@ func TestMultiProMultiCheck(t *testing.T) {
 
 	// pay
 	fmt.Println("-> pay 0.1 eth to provider0 with nonce 0")
-	err = common.Pay(usr, pro0, "100000000000000000", 0)
+	n, err := common.Pay(usr, pro0, "100000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> pay 0.2 eth to provider1 with nonce 0")
-	err = common.Pay(usr, pro1, "200000000000000000", 0)
+	n, err = common.Pay(usr, pro1, "200000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> pay 0.3 eth to provider2 with nonce 0")
-	err = common.Pay(usr, pro2, "300000000000000000", 0)
+	n, err = common.Pay(usr, pro2, "300000000000000000")
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
 	// withdraw
 	fmt.Println("-> provider0 withdraw")
-	err = common.Withdraw(op, pro0, 0)
+	n, err = common.Withdraw(op, pro0)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> provider1 withdraw")
-	err = common.Withdraw(op, pro1, 0)
+	n, err = common.Withdraw(op, pro1)
 	if err != nil {
 		t.Fatal(err)
 	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
+	}
+
 	fmt.Println("-> provider2 withdraw")
-	err = common.Withdraw(op, pro2, 0)
+	n, err = common.Withdraw(op, pro2)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 }

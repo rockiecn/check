@@ -61,8 +61,11 @@ func TestSerialOdr(t *testing.T) {
 	}
 
 	eq, err := odr.Equal(newOdr)
-	if !eq {
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !eq {
+		t.Fatal("new order not equal order")
 	}
 }
 
@@ -115,7 +118,10 @@ func TestSerialPchk(t *testing.T) {
 	}
 
 	eq, err := pchk.Equal(newPchk)
-	if !eq {
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !eq {
+		t.Fatal("newPchk not equal pchk")
 	}
 }
