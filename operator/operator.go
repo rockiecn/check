@@ -11,6 +11,7 @@ import (
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/odrmgr"
+	"github.com/rockiecn/check/internal/serial"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -19,6 +20,9 @@ type Operator struct {
 	OpAddr  common.Address
 	CtrAddr common.Address
 	Nonces  map[common.Address]uint64 // nonce for next check
+
+	orderDB string // dbfile for order
+	pchkDB  string // dbfile for paycheck
 
 	odrmgr *odrmgr.Ordermgr
 }
@@ -44,13 +48,25 @@ func New(sk string) (IOperator, error) {
 	}
 
 	op := &Operator{
-		OpSK:   sk,
-		OpAddr: opAddr,
-		Nonces: make(map[common.Address]uint64),
-		odrmgr: odrmgr.New(),
+		OpSK:    sk,
+		OpAddr:  opAddr,
+		Nonces:  make(map[common.Address]uint64),
+		orderDB: "./order.db",
+		pchkDB:  "./pchk.db",
+		odrmgr:  odrmgr.New(),
 	}
 
 	return op, nil
+}
+
+// restore orders from db
+func (op *Operator) RestoreOrder() error {
+	return nil
+}
+
+// restore paychecks from db
+func (op *Operator) RestorePchk() error {
+	return nil
 }
 
 // value: money to new contract
@@ -206,11 +222,23 @@ func (op *Operator) PutOrder(odr *odrmgr.Order) error {
 	err := op.odrmgr.PutOrder(odr)
 	if err != nil {
 		return err
-	} else {
-		// update manager ID for next order
-		op.odrmgr.ID = odr.ID + 1
-		return nil
 	}
+
+	// serialize
+	b, err := serial.MarshOdr(odr)
+	if err != nil {
+		return err
+	}
+	// write db
+	err = serial.WriteDB(op.orderDB, utils.Uint64ToByte(odr.ID), b)
+	if err != nil {
+		return err
+	}
+
+	// update manager ID for next order
+	op.odrmgr.ID = odr.ID + 1
+	return nil
+
 }
 
 // get an order with id from order manager

@@ -1,4 +1,4 @@
-package serial
+package operator
 
 import (
 	"testing"
@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/odrmgr"
+	"github.com/rockiecn/check/internal/serial"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -19,6 +20,21 @@ import (
 // 5.unmarshal it back to a new order
 // 6.check if old order identical to new order
 func TestSerialOdr(t *testing.T) {
+	// generate operator
+	opSk, err := utils.GenerateSK()
+	if err != nil {
+		t.Fatal(err)
+	}
+	op, err := New(opSk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Op, ok := op.(*Operator)
+	if !ok {
+		t.Fatal("new operator assertion failed")
+	}
+
+	// create an order
 	odr := &odrmgr.Order{
 		ID:    1,
 		Token: common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"),
@@ -37,25 +53,27 @@ func TestSerialOdr(t *testing.T) {
 	}
 
 	// marshal order
-	buf, err := MarshOdr(odr)
+	buf, err := serial.MarshOdr(odr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// put into db
-	err = WriteDB("./test_order.db", 1, buf)
+	k := utils.Uint64ToByte(1)
+	err = serial.WriteDB(Op.orderDB, k, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := ReadDB("./test_order.db", 1)
+	k = utils.Uint64ToByte(1)
+	newBuf, err := serial.ReadDB(Op.orderDB, k)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// unmarshal order
-	newOdr, err := UnMarshOdr(newBuf)
+	newOdr, err := serial.UnMarshOdr(newBuf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,6 +96,21 @@ func TestSerialOdr(t *testing.T) {
 // 5.unmarshal it back to a new paycheck
 // 6.check if old paycheck identical to new paycheck
 func TestSerialPchk(t *testing.T) {
+	// generate operator
+	opSk, err := utils.GenerateSK()
+	if err != nil {
+		t.Fatal(err)
+	}
+	op, err := New(opSk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Op, ok := op.(*Operator)
+	if !ok {
+		t.Fatal("new operator assertion failed")
+	}
+
+	// create a pay check
 	pchk := &check.Paycheck{
 		Check: &check.Check{
 			Value:     utils.String2BigInt("100000000000000000000"),
@@ -94,25 +127,25 @@ func TestSerialPchk(t *testing.T) {
 	}
 
 	// marshal pchk
-	buf, err := MarshPchk(pchk)
+	buf, err := serial.MarshPchk(pchk)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// put into db
-	err = WriteDB("./test_pchk.db", 1, buf)
+	err = serial.WriteDB(Op.pchkDB, serial.GetKey(pchk), buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := ReadDB("./test_pchk.db", 1)
+	newBuf, err := serial.ReadDB(Op.pchkDB, serial.GetKey(pchk))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// unmarshal pchk
-	newPchk, err := UnMarshPchk(newBuf)
+	newPchk, err := serial.UnMarshPchk(newBuf)
 	if err != nil {
 		t.Fatal(err)
 	}

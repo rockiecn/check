@@ -68,7 +68,9 @@ func UnMarshPchk(buf []byte) (*check.Paycheck, error) {
 }
 
 // db operation
-func WriteDB(dbfile string, oid uint64, buf []byte) error {
+// key for order: oid
+// key for paycheck: provider address + nonce
+func WriteDB(dbfile string, key []byte, buf []byte) error {
 	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
@@ -76,10 +78,7 @@ func WriteDB(dbfile string, oid uint64, buf []byte) error {
 	}
 	defer db.Close()
 
-	// uint64 to []byte
-	k := utils.Uint64ToByte(oid)
-
-	err = db.Put(k, buf, nil)
+	err = db.Put(key, buf, nil)
 	if err != nil {
 		return err
 	}
@@ -87,7 +86,7 @@ func WriteDB(dbfile string, oid uint64, buf []byte) error {
 }
 
 // db operation
-func ReadDB(dbfile string, oid uint64) ([]byte, error) {
+func ReadDB(dbfile string, key []byte) ([]byte, error) {
 	db, err := leveldb.OpenFile(dbfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
@@ -95,12 +94,18 @@ func ReadDB(dbfile string, oid uint64) ([]byte, error) {
 	}
 	defer db.Close()
 
-	// uint64 to []byte
-	k := utils.Uint64ToByte(oid)
-
-	buf, err := db.Get(k, nil)
+	buf, err := db.Get(key, nil)
 	if err != nil {
 		return nil, err
 	}
 	return buf, nil
+}
+
+// get key from paycheck for db operation
+// key = to address + nonce
+func GetKey(pchk *check.Paycheck) []byte {
+	var key []byte
+	key = append(key, pchk.ToAddr.Bytes()...)
+	key = append(key, utils.Uint64ToByte(pchk.Nonce)...)
+	return key
 }
