@@ -1,4 +1,4 @@
-package mgr
+package odrmgr
 
 import (
 	"errors"
@@ -23,7 +23,10 @@ type Order struct {
 	Tel   string // 购买人联系方式
 	Email string // 接收支票的邮件地址
 
-	State uint8 // 标记是否已付款; 0,1 paid,2 check
+	// 0 initial
+	// 1 order paid
+	// 2 created check
+	State uint8 // 标记是否已付款;
 }
 
 func (odr *Order) Equal(o2 *Order) (bool, error) {
@@ -61,15 +64,15 @@ func (odr *Order) Equal(o2 *Order) (bool, error) {
 	return true, nil
 }
 
-type OrderMgr struct {
+type Ordermgr struct {
 	ID      uint64                  // ID used for create next order
 	OdrPool map[uint64]*Order       // id -> order
 	ChkPool map[uint64]*check.Check // id -> check
 }
 
 // create a new order manager
-func New() *OrderMgr {
-	om := &OrderMgr{
+func New() *Ordermgr {
+	om := &Ordermgr{
 		ID:      0,
 		OdrPool: make(map[uint64]*Order),
 		ChkPool: make(map[uint64]*check.Check),
@@ -78,42 +81,42 @@ func New() *OrderMgr {
 }
 
 // get ID for new order, and increase ID by 1
-func (odrMgr *OrderMgr) NewID() uint64 {
-	id := odrMgr.ID
-	odrMgr.ID++
+func (odrmgr *Ordermgr) NewID() uint64 {
+	id := odrmgr.ID
+	odrmgr.ID++
 	return id
 }
 
 // get an order by id
-func (odrMgr *OrderMgr) GetOrder(oid uint64) (*Order, error) {
-	if odrMgr.OdrPool[oid] == nil {
+func (odrmgr *Ordermgr) GetOrder(oid uint64) (*Order, error) {
+	if odrmgr.OdrPool[oid] == nil {
 		return nil, errors.New("order not exist")
 	}
-	return odrMgr.OdrPool[oid], nil
+	return odrmgr.OdrPool[oid], nil
 }
 
 // store an order into pool
-func (odrMgr *OrderMgr) PutOrder(odr *Order) error {
+func (odrmgr *Ordermgr) PutOrder(odr *Order) error {
 	if odr == nil {
 		return errors.New("order is nil")
 	}
-	odrMgr.OdrPool[odr.ID] = odr
+	odrmgr.OdrPool[odr.ID] = odr
 	return nil
 }
 
 // get a check from pool by oid
-func (odrMgr *OrderMgr) GetCheck(oid uint64) *check.Check {
-	return odrMgr.ChkPool[oid]
+func (odrmgr *Ordermgr) GetCheck(oid uint64) *check.Check {
+	return odrmgr.ChkPool[oid]
 }
 
 // store a check into pool by oid
-func (odrMgr *OrderMgr) PutCheck(oid uint64, chk *check.Check) {
-	odrMgr.ChkPool[oid] = chk
+func (odrmgr *Ordermgr) PutCheck(oid uint64, chk *check.Check) {
+	odrmgr.ChkPool[oid] = chk
 }
 
 // get order state
-func (odrMgr *OrderMgr) GetState(oid uint64) (uint8, error) {
-	odr, err := odrMgr.GetOrder(oid)
+func (odrmgr *Ordermgr) GetState(oid uint64) (uint8, error) {
+	odr, err := odrmgr.GetOrder(oid)
 	if err != nil {
 		return 0, err
 	}
@@ -121,8 +124,8 @@ func (odrMgr *OrderMgr) GetState(oid uint64) (uint8, error) {
 }
 
 // set order state
-func (odrMgr *OrderMgr) SetState(oid uint64, st uint8) error {
-	odr, err := odrMgr.GetOrder(oid)
+func (odrmgr *Ordermgr) SetState(oid uint64, st uint8) error {
+	odr, err := odrmgr.GetOrder(oid)
 	if err != nil {
 		return err
 	}
@@ -131,8 +134,7 @@ func (odrMgr *OrderMgr) SetState(oid uint64, st uint8) error {
 }
 
 // pay process for an specific order
-func (odrMgr *OrderMgr) UserPay(oid uint64) {
-	// set state paid after user pay money
-	// generate a check for user
-	// set check to odr.Check
+func (odrmgr *Ordermgr) UserPay(oid uint64) {
+	// set order state to paid after user paid the order
+	// create and store check
 }

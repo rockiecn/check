@@ -8,7 +8,7 @@ import (
 
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/common"
-	"github.com/rockiecn/check/internal/mgr"
+	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -41,7 +41,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// create  order for each provider
-	odr0 := &mgr.Order{
+	odr0 := &odrmgr.Order{
 		ID:    0,
 		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
@@ -64,7 +64,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// create  order for each provider
-	odr1 := &mgr.Order{
+	odr1 := &odrmgr.Order{
 		ID:    1,
 		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
@@ -87,7 +87,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// create  order for each provider
-	odr2 := &mgr.Order{
+	odr2 := &odrmgr.Order{
 		ID:    2,
 		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
@@ -149,14 +149,6 @@ func TestBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// send 1 eth to provider
-	fmt.Println("-> send 1 eth to provider")
-	tx, err := utils.SendCoin(common.SenderSk, pro.ProviderAddr, utils.String2BigInt("1000000000000000000"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	utils.WaitForMiner(tx)
-
 	b1, err := pro.QueryBalance()
 	if err != nil {
 		t.Fatal(err)
@@ -165,7 +157,7 @@ func TestBatch(t *testing.T) {
 
 	// withdraw batch
 	fmt.Println("-> withdraw batch check")
-	tx, err = pro.WithdrawBatch(bc)
+	tx, err := pro.WithdrawBatch(bc)
 	if err != nil {
 		t.Fatal(err)
 	}

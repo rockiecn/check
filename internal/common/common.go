@@ -9,7 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/mgr"
+	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
 	"github.com/rockiecn/check/provider"
@@ -111,7 +111,7 @@ func InitOrder(
 	pro *provider.Provider,
 	v string,
 ) error {
-	odr := &mgr.Order{
+	odr := &odrmgr.Order{
 		ID:    id,
 		Token: Token,
 		Value: utils.String2BigInt(v), // order value: 0.3 eth

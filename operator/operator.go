@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/mgr"
+	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -20,7 +20,7 @@ type Operator struct {
 	CtrAddr common.Address
 	Nonces  map[common.Address]uint64 // nonce for next check
 
-	OdrMgr *mgr.OrderMgr
+	odrmgr *odrmgr.Ordermgr
 }
 
 type IOperator interface {
@@ -29,9 +29,9 @@ type IOperator interface {
 	QueryBalance() (*big.Int, error)
 	Deposit(value *big.Int) (*types.Transaction, error)
 	GetNonce(to common.Address) (uint64, error)
-	SetMgr(om *mgr.OrderMgr) error
-	PutOrder(odr *mgr.Order) error
-	GetOrder(id uint64) (*mgr.Order, error)
+	Setodrmgr(om *odrmgr.Ordermgr) error
+	PutOrder(odr *odrmgr.Order) error
+	GetOrder(id uint64) (*odrmgr.Order, error)
 	CreateCheck(oid uint64) (*check.Check, error)
 	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
@@ -47,7 +47,7 @@ func New(sk string) (IOperator, error) {
 		OpSK:   sk,
 		OpAddr: opAddr,
 		Nonces: make(map[common.Address]uint64),
-		OdrMgr: mgr.New(),
+		odrmgr: odrmgr.New(),
 	}
 
 	return op, nil
@@ -125,33 +125,6 @@ func (op *Operator) GetNonce(to common.Address) (uint64, error) {
 	return nonce, err
 }
 
-// set nonce of contract
-func (op *Operator) SetNonce(to common.Address, nonce uint64) (*types.Transaction, error) {
-	ethClient, err := utils.GetClient(utils.HOST)
-	if err != nil {
-		return nil, errors.New("failed to dial geth")
-	}
-	defer ethClient.Close()
-
-	auth, err := utils.MakeAuth(op.OpSK, nil, nil, nil, 9000000)
-	if err != nil {
-		return nil, err
-	}
-
-	// get contract instance from address
-	cashInstance, err := cash.NewCash(op.CtrAddr, ethClient)
-	if err != nil {
-		return nil, errors.New("newcash failed")
-	}
-
-	tx, err := cashInstance.SetNonce(auth, to, nonce)
-	if err != nil {
-		return nil, errors.New("tx failed")
-	}
-
-	return tx, nil
-}
-
 // deposit some money to contract
 func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	ethClient, err := utils.GetClient(utils.HOST)
@@ -188,7 +161,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // last, put the check into order
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
-	odr, err := op.OdrMgr.GetOrder(oid)
+	odr, err := op.odrmgr.GetOrder(oid)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +183,9 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 	if err != nil {
 		return nil, err
 	}
-	op.OdrMgr.PutCheck(oid, chk)
+
+	// store check into odrmgr
+	op.odrmgr.PutCheck(oid, chk)
 	// update nonce for next check
 	op.Nonces[odr.To] = nonce + 1
 
@@ -218,32 +193,32 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 }
 
 // set a manager for operator
-func (op *Operator) SetMgr(om *mgr.OrderMgr) error {
+func (op *Operator) Setodrmgr(om *odrmgr.Ordermgr) error {
 	if om == nil {
 		return errors.New("om nil")
 	}
-	op.OdrMgr = om
+	op.odrmgr = om
 	return nil
 }
 
 // store an order into order pool
-func (op *Operator) PutOrder(odr *mgr.Order) error {
-	err := op.OdrMgr.PutOrder(odr)
+func (op *Operator) PutOrder(odr *odrmgr.Order) error {
+	err := op.odrmgr.PutOrder(odr)
 	if err != nil {
 		return err
 	} else {
 		// update manager ID for next order
-		op.OdrMgr.ID = odr.ID + 1
+		op.odrmgr.ID = odr.ID + 1
 		return nil
 	}
 }
 
 // get an order with id from order manager
-func (op *Operator) GetOrder(oid uint64) (*mgr.Order, error) {
-	if op.OdrMgr.OdrPool[oid] == nil {
+func (op *Operator) GetOrder(oid uint64) (*odrmgr.Order, error) {
+	if op.odrmgr.OdrPool[oid] == nil {
 		return nil, errors.New("order not exist")
 	}
-	return op.OdrMgr.OdrPool[oid], nil
+	return op.odrmgr.OdrPool[oid], nil
 }
 
 // aggregate a batch of paychecks into a single BatchCheck
@@ -298,7 +273,7 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 
 	}
 
-	batch := new(check.BatchCheck)
+	batch := &check.BatchCheck{}
 	batch.OpAddr = op.OpAddr
 	batch.ToAddr = toAddr
 	batch.CtrAddr = op.CtrAddr

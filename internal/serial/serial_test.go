@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/mgr"
+	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -19,7 +19,7 @@ import (
 // 5.unmarshal it back to a new order
 // 6.check if old order identical to new order
 func TestSerialOdr(t *testing.T) {
-	odr := &mgr.Order{
+	odr := &odrmgr.Order{
 		ID:    1,
 		Token: common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061"),
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
