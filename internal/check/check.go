@@ -3,10 +3,12 @@ package check
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -97,6 +99,76 @@ func (chk *Check) Serialize() []byte {
 	return hash
 }
 
+// serialize an order with cbor
+func (chk *Check) Marshal() ([]byte, error) {
+
+	if chk == nil {
+		return nil, errors.New("nil chk")
+	}
+
+	b, err := cbor.Marshal(*chk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return b, nil
+}
+
+// decode a buf into order
+func (chk *Check) UnMarshal(buf []byte) error {
+	if chk == nil {
+		return errors.New("nil chk")
+	}
+	if buf == nil {
+		return errors.New("nil buf")
+	}
+
+	err := cbor.Unmarshal(buf, chk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return nil
+}
+
+// equal
+func (chk *Check) Equal(c2 *Check) (bool, error) {
+	if chk.Value.Cmp(c2.Value) != 0 {
+		return false, errors.New("value not equal")
+	}
+	if chk.TokenAddr != c2.TokenAddr {
+		return false, errors.New("token not equal")
+	}
+	if chk.Nonce != c2.Nonce {
+		return false, errors.New("nonce not equal")
+	}
+	if chk.FromAddr != c2.FromAddr {
+		return false, errors.New("from not equal")
+	}
+	if chk.ToAddr != c2.ToAddr {
+		return false, errors.New("to not equal")
+	}
+	if chk.OpAddr != c2.OpAddr {
+		return false, errors.New("op not equal")
+	}
+	if chk.CtrAddr != c2.CtrAddr {
+		return false, errors.New("contrAddr not equal")
+	}
+	if !bytes.Equal(chk.CheckSig, c2.CheckSig) {
+		return false, errors.New("check sig not equal")
+	}
+
+	return true, nil
+}
+
+// get key from paycheck for db operation
+// key = to address + nonce
+func (chk *Check) ToKey() []byte {
+	var key []byte
+	key = append(key, chk.ToAddr.Bytes()...)
+	key = append(key, utils.Uint64ToByte(chk.Nonce)...)
+
+	return key
+}
+
 // Paycheck is an auto generated low-level Go binding around an user-defined struct.
 type Paycheck struct {
 	*Check
@@ -175,29 +247,10 @@ func (pchk *Paycheck) Serialize() []byte {
 
 // equal
 func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
-	if pchk.Check.Value.Cmp(p2.Check.Value) != 0 {
-		return false, errors.New("value not equal")
-	}
-	if pchk.Check.TokenAddr != p2.Check.TokenAddr {
-		return false, errors.New("token not equal")
-	}
-	if pchk.Check.Nonce != p2.Check.Nonce {
-		return false, errors.New("nonce not equal")
-	}
-	if pchk.Check.FromAddr != p2.Check.FromAddr {
-		return false, errors.New("from not equal")
-	}
-	if pchk.Check.ToAddr != p2.Check.ToAddr {
-		return false, errors.New("to not equal")
-	}
-	if pchk.Check.OpAddr != p2.Check.OpAddr {
-		return false, errors.New("op not equal")
-	}
-	if pchk.Check.CtrAddr != p2.Check.CtrAddr {
-		return false, errors.New("contrAddr not equal")
-	}
-	if !bytes.Equal(pchk.Check.CheckSig, p2.Check.CheckSig) {
-		return false, errors.New("check sig not equal")
+
+	_, err := pchk.Check.Equal(p2.Check)
+	if err != nil {
+		return false, err
 	}
 	if pchk.PayValue.String() != p2.PayValue.String() {
 		return false, errors.New("pay value not equal")
@@ -284,4 +337,41 @@ func (bc *BatchCheck) Serialize() []byte {
 	)
 
 	return hash
+}
+
+// serialize an order with cbor
+func (pchk *Paycheck) Marshal() ([]byte, error) {
+
+	if pchk == nil {
+		return nil, errors.New("nil pchk")
+	}
+
+	b, err := cbor.Marshal(*pchk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return b, nil
+}
+
+// decode a buf into order
+func (pchk *Paycheck) UnMarshal(buf []byte) error {
+	if pchk == nil {
+		return errors.New("nil pchk")
+	}
+	if buf == nil {
+		return errors.New("nil buf")
+	}
+
+	err := cbor.Unmarshal(buf, pchk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return nil
+}
+
+// get key from paycheck for db operation
+// key = to address + nonce
+func (pchk *Paycheck) ToKey() []byte {
+	key := pchk.Check.ToKey()
+	return key
 }

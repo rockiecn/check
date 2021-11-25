@@ -58,7 +58,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err = op.PutOrder(odr0)
+	err = op.OM.PutOrder(odr0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err = op.PutOrder(odr1)
+	err = op.OM.PutOrder(odr1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err = op.PutOrder(odr2)
+	err = op.OM.PutOrder(odr2)
 	if err != nil {
 		t.Fatal(err)
 	}

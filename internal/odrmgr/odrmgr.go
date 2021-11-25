@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/rockiecn/check/internal/check"
 )
 
@@ -64,6 +65,36 @@ func (odr *Order) Equal(o2 *Order) (bool, error) {
 	return true, nil
 }
 
+// serialize an order with cbor
+func (odr *Order) Marshal() ([]byte, error) {
+
+	if odr == nil {
+		return nil, errors.New("nil order")
+	}
+
+	b, err := cbor.Marshal(*odr)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// decode a buf into order
+func (odr *Order) UnMarshal(buf []byte) error {
+	if odr == nil {
+		return errors.New("nil order")
+	}
+	if buf == nil {
+		return errors.New("nil buf")
+	}
+
+	err := cbor.Unmarshal(buf, odr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type Ordermgr struct {
 	ID      uint64                  // ID used for create next order
 	OdrPool map[uint64]*Order       // id -> order
@@ -81,42 +112,60 @@ func New() *Ordermgr {
 }
 
 // get ID for new order, and increase ID by 1
-func (odrmgr *Ordermgr) NewID() uint64 {
-	id := odrmgr.ID
-	odrmgr.ID++
+func (mgr *Ordermgr) NewID() uint64 {
+	id := mgr.ID
+	mgr.ID++
 	return id
 }
 
 // get an order by id
-func (odrmgr *Ordermgr) GetOrder(oid uint64) (*Order, error) {
-	if odrmgr.OdrPool[oid] == nil {
+func (mgr *Ordermgr) GetOrder(oid uint64) (*Order, error) {
+	if mgr.OdrPool[oid] == nil {
 		return nil, errors.New("order not exist")
 	}
-	return odrmgr.OdrPool[oid], nil
+	return mgr.OdrPool[oid], nil
 }
 
 // store an order into pool
-func (odrmgr *Ordermgr) PutOrder(odr *Order) error {
+func (mgr *Ordermgr) PutOrder(odr *Order) error {
 	if odr == nil {
 		return errors.New("order is nil")
 	}
-	odrmgr.OdrPool[odr.ID] = odr
+
+	// put into pool
+	mgr.OdrPool[odr.ID] = odr
+
 	return nil
 }
 
+// delete an order from pool by ID
+func (mgr *Ordermgr) DelOrder(oid uint64) {
+	delete(mgr.OdrPool, oid)
+}
+
 // get a check from pool by oid
-func (odrmgr *Ordermgr) GetCheck(oid uint64) *check.Check {
-	return odrmgr.ChkPool[oid]
+func (mgr *Ordermgr) GetCheck(oid uint64) *check.Check {
+	return mgr.ChkPool[oid]
 }
 
 // store a check into pool by oid
-func (odrmgr *Ordermgr) PutCheck(oid uint64, chk *check.Check) {
-	odrmgr.ChkPool[oid] = chk
+func (mgr *Ordermgr) PutCheck(oid uint64, chk *check.Check) error {
+	if chk == nil {
+		return errors.New("chk is nil")
+	}
+
+	mgr.ChkPool[oid] = chk
+	return nil
+}
+
+// delete a check from pool by ID
+func (mgr *Ordermgr) DelCheck(oid uint64) {
+	delete(mgr.ChkPool, oid)
 }
 
 // get order state
-func (odrmgr *Ordermgr) GetState(oid uint64) (uint8, error) {
-	odr, err := odrmgr.GetOrder(oid)
+func (mgr *Ordermgr) GetState(oid uint64) (uint8, error) {
+	odr, err := mgr.GetOrder(oid)
 	if err != nil {
 		return 0, err
 	}
@@ -124,8 +173,8 @@ func (odrmgr *Ordermgr) GetState(oid uint64) (uint8, error) {
 }
 
 // set order state
-func (odrmgr *Ordermgr) SetState(oid uint64, st uint8) error {
-	odr, err := odrmgr.GetOrder(oid)
+func (mgr *Ordermgr) SetState(oid uint64, st uint8) error {
+	odr, err := mgr.GetOrder(oid)
 	if err != nil {
 		return err
 	}
@@ -134,7 +183,7 @@ func (odrmgr *Ordermgr) SetState(oid uint64, st uint8) error {
 }
 
 // pay process for an specific order
-func (odrmgr *Ordermgr) UserPay(oid uint64) {
+func (mgr *Ordermgr) UserPay(oid uint64) {
 	// set order state to paid after user paid the order
 	// create and store check
 }

@@ -127,7 +127,7 @@ func InitOrder(
 		return errors.New("create order failed")
 	}
 
-	err := op.PutOrder(odr)
+	err := op.OM.PutOrder(odr)
 	if err != nil {
 		return err
 	}

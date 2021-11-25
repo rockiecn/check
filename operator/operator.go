@@ -10,9 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/db"
 	"github.com/rockiecn/check/internal/odrmgr"
-	"github.com/rockiecn/check/internal/serial"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type Operator struct {
@@ -22,9 +23,9 @@ type Operator struct {
 	Nonces  map[common.Address]uint64 // nonce for next check
 
 	orderDB string // dbfile for order
-	pchkDB  string // dbfile for paycheck
+	chkDB   string // dbfile for check
 
-	odrmgr *odrmgr.Ordermgr
+	OM *odrmgr.Ordermgr
 }
 
 type IOperator interface {
@@ -33,9 +34,6 @@ type IOperator interface {
 	QueryBalance() (*big.Int, error)
 	Deposit(value *big.Int) (*types.Transaction, error)
 	GetNonce(to common.Address) (uint64, error)
-	Setodrmgr(om *odrmgr.Ordermgr) error
-	PutOrder(odr *odrmgr.Order) error
-	GetOrder(id uint64) (*odrmgr.Order, error)
 	CreateCheck(oid uint64) (*check.Check, error)
 	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
@@ -52,20 +50,113 @@ func New(sk string) (IOperator, error) {
 		OpAddr:  opAddr,
 		Nonces:  make(map[common.Address]uint64),
 		orderDB: "./order.db",
-		pchkDB:  "./pchk.db",
-		odrmgr:  odrmgr.New(),
+		chkDB:   "./check.db",
+		OM:      odrmgr.New(),
 	}
 
 	return op, nil
 }
 
-// restore orders from db
-func (op *Operator) RestoreOrder() error {
+// Store an order into db
+func (op *Operator) StoreOrder(odr *odrmgr.Order) error {
+	// serialize
+	b, err := odr.Marshal()
+	if err != nil {
+		return err
+	}
+	// write db
+	err = db.WriteDB(op.orderDB, utils.Uint64ToByte(odr.ID), b)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-// restore paychecks from db
-func (op *Operator) RestorePchk() error {
+// store a check into db
+func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
+	// serialize
+	b, err := chk.Marshal()
+	if err != nil {
+		return err
+	}
+	// write db
+	err = db.WriteDB(op.orderDB, utils.Uint64ToByte(oid), b)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// restore orders from db when start operator
+func (op *Operator) RestoreOrder() error {
+	db, err := leveldb.OpenFile(op.orderDB, nil)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// read data from db
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		//k := iter.Key()
+		v := iter.Value()
+		odr := &odrmgr.Order{}
+		err := odr.UnMarshal(v)
+		if err != nil {
+			return err
+		}
+
+		// put into memory
+		err = op.OM.PutOrder(odr)
+		if err != nil {
+			return err
+		}
+	}
+
+	iter.Release()
+	err = iter.Error()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// restore checks from db when start operator
+func (op *Operator) RestoreChk() error {
+	db, err := leveldb.OpenFile(op.chkDB, nil)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// read data from db
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		k := iter.Key()
+		v := iter.Value()
+		chk := &check.Check{}
+		err := chk.UnMarshal(v)
+		if err != nil {
+			return err
+		}
+
+		oid := utils.ByteToUint64(k)
+		// put into memory
+		err = op.OM.PutCheck(oid, chk)
+		if err != nil {
+			return err
+		}
+	}
+
+	iter.Release()
+	err = iter.Error()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -177,7 +268,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // last, put the check into order
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
-	odr, err := op.odrmgr.GetOrder(oid)
+	odr, err := op.OM.GetOrder(oid)
 	if err != nil {
 		return nil, err
 	}
@@ -200,53 +291,7 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 		return nil, err
 	}
 
-	// store check into odrmgr
-	op.odrmgr.PutCheck(oid, chk)
-	// update nonce for next check
-	op.Nonces[odr.To] = nonce + 1
-
 	return chk, nil
-}
-
-// set a manager for operator
-func (op *Operator) Setodrmgr(om *odrmgr.Ordermgr) error {
-	if om == nil {
-		return errors.New("om nil")
-	}
-	op.odrmgr = om
-	return nil
-}
-
-// store an order into order pool
-func (op *Operator) PutOrder(odr *odrmgr.Order) error {
-	err := op.odrmgr.PutOrder(odr)
-	if err != nil {
-		return err
-	}
-
-	// serialize
-	b, err := serial.MarshOdr(odr)
-	if err != nil {
-		return err
-	}
-	// write db
-	err = serial.WriteDB(op.orderDB, utils.Uint64ToByte(odr.ID), b)
-	if err != nil {
-		return err
-	}
-
-	// update manager ID for next order
-	op.odrmgr.ID = odr.ID + 1
-	return nil
-
-}
-
-// get an order with id from order manager
-func (op *Operator) GetOrder(oid uint64) (*odrmgr.Order, error) {
-	if op.odrmgr.OdrPool[oid] == nil {
-		return nil, errors.New("order not exist")
-	}
-	return op.odrmgr.OdrPool[oid], nil
 }
 
 // aggregate a batch of paychecks into a single BatchCheck

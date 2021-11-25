@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/db"
 	"github.com/rockiecn/check/internal/odrmgr"
-	"github.com/rockiecn/check/internal/serial"
 	"github.com/rockiecn/check/internal/utils"
 )
 
@@ -53,27 +53,28 @@ func TestSerialOdr(t *testing.T) {
 	}
 
 	// marshal order
-	buf, err := serial.MarshOdr(odr)
+	buf, err := odr.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// put into db
 	k := utils.Uint64ToByte(1)
-	err = serial.WriteDB(Op.orderDB, k, buf)
+	err = db.WriteDB(Op.orderDB, k, buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
 	k = utils.Uint64ToByte(1)
-	newBuf, err := serial.ReadDB(Op.orderDB, k)
+	newBuf, err := db.ReadDB(Op.orderDB, k)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// unmarshal order
-	newOdr, err := serial.UnMarshOdr(newBuf)
+	newOdr := &odrmgr.Order{}
+	err = newOdr.UnMarshal(newBuf)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +96,7 @@ func TestSerialOdr(t *testing.T) {
 // 4.read it from db
 // 5.unmarshal it back to a new paycheck
 // 6.check if old paycheck identical to new paycheck
-func TestSerialPchk(t *testing.T) {
+func TestSerialChk(t *testing.T) {
 	// generate operator
 	opSk, err := utils.GenerateSK()
 	if err != nil {
@@ -111,50 +112,63 @@ func TestSerialPchk(t *testing.T) {
 	}
 
 	// create a pay check
-	pchk := &check.Paycheck{
-		Check: &check.Check{
-			Value:     utils.String2BigInt("100000000000000000000"),
-			TokenAddr: common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
-			Nonce:     6,
-			FromAddr:  common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
-			ToAddr:    common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
-			OpAddr:    common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
-			CtrAddr:   common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
-			CheckSig:  utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
-		},
-		PayValue:    utils.String2BigInt("1000000000000000000"),
-		PaycheckSig: utils.String2Byte("b87d34cbb5ce832d8f3e6533fde6140d3e4562428eb0fa9e10dc1b29230a03401051d928f9a2f8ca0cf390e44449d7f83bf58e6003489d5d61ede2e2ad86990801"),
+	// pchk := &check.Paycheck{
+	// 	Check: &check.Check{
+	// 		Value:     utils.String2BigInt("100000000000000000000"),
+	// 		TokenAddr: common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
+	// 		Nonce:     6,
+	// 		FromAddr:  common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+	// 		ToAddr:    common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+	// 		OpAddr:    common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+	// 		CtrAddr:   common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+	// 		CheckSig:  utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
+	// 	},
+	// 	PayValue:    utils.String2BigInt("1000000000000000000"),
+	// 	PaycheckSig: utils.String2Byte("b87d34cbb5ce832d8f3e6533fde6140d3e4562428eb0fa9e10dc1b29230a03401051d928f9a2f8ca0cf390e44449d7f83bf58e6003489d5d61ede2e2ad86990801"),
+	// }
+
+	// create a check
+	chk := &check.Check{
+		Value:     utils.String2BigInt("100000000000000000000"),
+		TokenAddr: common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
+		Nonce:     6,
+		FromAddr:  common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+		ToAddr:    common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+		OpAddr:    common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+		CtrAddr:   common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+		CheckSig:  utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 	}
 
-	// marshal pchk
-	buf, err := serial.MarshPchk(pchk)
+	// marshal chk
+	buf, err := chk.Marshal()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// put into db
-	err = serial.WriteDB(Op.pchkDB, serial.GetKey(pchk), buf)
+	// put chk into db
+	err = db.WriteDB(Op.chkDB, chk.ToKey(), buf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	newBuf, err := serial.ReadDB(Op.pchkDB, serial.GetKey(pchk))
+	newBuf, err := db.ReadDB(Op.chkDB, chk.ToKey())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// unmarshal pchk
-	newPchk, err := serial.UnMarshPchk(newBuf)
+	// unmarshal chk
+	newchk := &check.Check{}
+	err = newchk.UnMarshal(newBuf)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	eq, err := pchk.Equal(newPchk)
+	eq, err := chk.Equal(newchk)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !eq {
-		t.Fatal("newPchk not equal pchk")
+		t.Fatal("newchk not equal chk")
 	}
 }

@@ -88,12 +88,6 @@ func MakeAuth(
 	return auth, nil
 }
 
-func Uint64ToByte(i uint64) []byte {
-	var buf = make([]byte, 8)
-	binary.BigEndian.PutUint64(buf, uint64(i))
-	return buf
-}
-
 // get contract nonce
 func GetCtNonce(contract common.Address, to common.Address) (uint64, error) {
 
@@ -242,4 +236,13 @@ func GetGasUsed(tx *types.Transaction) (*big.Int, error) {
 		gasWei := new(big.Int).SetUint64(txReceipt.GasUsed * 1000)
 		return gasWei, nil
 	}
+}
+
+func Uint64ToByte(i uint64) []byte {
+	var buf = make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, uint64(i))
+	return buf
+}
+func ByteToUint64(buf []byte) uint64 {
+	return binary.BigEndian.Uint64(buf)
 }
