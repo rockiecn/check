@@ -372,7 +372,7 @@ func (op *Operator) ShowChk() {
 	for k, v := range op.OM.ChkPool {
 		fmt.Println("-> oid:", k)
 		fmt.Println("check info:")
-		fmt.Print(v)
+		fmt.Println(v)
 	}
 }
 
@@ -381,6 +381,6 @@ func (op *Operator) ShowOdr() {
 	for k, v := range op.OM.OdrPool {
 		fmt.Println("-> oid:", k)
 		fmt.Println("order info:")
-		fmt.Print(v)
+		fmt.Println(v)
 	}
 }
