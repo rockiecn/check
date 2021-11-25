@@ -24,7 +24,7 @@ type Operator struct {
 	Nonces  map[common.Address]uint64 // nonce for next check
 
 	orderDB string // dbfile for order
-	chkDB   string // dbfile for check
+	checkDB string // dbfile for check
 
 	OM *odrmgr.Ordermgr
 }
@@ -51,7 +51,7 @@ func New(sk string) (IOperator, error) {
 		OpAddr:  opAddr,
 		Nonces:  make(map[common.Address]uint64),
 		orderDB: "./order.db",
-		chkDB:   "./check.db",
+		checkDB: "./check.db",
 		OM:      odrmgr.New(),
 	}
 
@@ -82,7 +82,7 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 		return err
 	}
 	// write db
-	err = db.WriteDB(op.orderDB, utils.Uint64ToByte(oid), b)
+	err = db.WriteDB(op.checkDB, utils.Uint64ToByte(oid), b)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (op *Operator) RestoreOrder() error {
 
 // restore checks from db when start operator
 func (op *Operator) RestoreChk() error {
-	db, err := leveldb.OpenFile(op.chkDB, nil)
+	db, err := leveldb.OpenFile(op.checkDB, nil)
 	if err != nil {
 		return err
 	}

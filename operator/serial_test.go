@@ -134,7 +134,7 @@ func TestSerialChk(t *testing.T) {
 	Op.StoreChk(1, chk)
 
 	// read from db
-	newBuf, err := db.ReadDB(Op.chkDB, chk.ToKey())
+	newBuf, err := db.ReadDB(Op.checkDB, utils.Uint64ToByte(1))
 	if err != nil {
 		t.Fatal(err)
 	}

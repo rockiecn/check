@@ -21,7 +21,7 @@ func TestRestoreOp(t *testing.T) {
 		t.Fatal("new operator assertion failed")
 	}
 
-	// restore order and check
+	// restore order and check into pool
 	err = Op.RestoreChk()
 	if err != nil {
 		t.Fatal(err)
@@ -31,6 +31,7 @@ func TestRestoreOp(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// show data in pool
 	Op.ShowChk()
 	Op.ShowOdr()
 }
