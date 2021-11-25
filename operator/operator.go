@@ -3,6 +3,7 @@ package operator
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -364,4 +365,22 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 // set operator's contract address
 func (op *Operator) SetCtrAddr(addr common.Address) {
 	op.CtrAddr = addr
+}
+
+// show all checks in pool
+func (op *Operator) ShowChk() {
+	for k, v := range op.OM.ChkPool {
+		fmt.Println("-> oid:", k)
+		fmt.Println("check info:")
+		fmt.Print(v)
+	}
+}
+
+// show all orders in pool
+func (op *Operator) ShowOdr() {
+	for k, v := range op.OM.OdrPool {
+		fmt.Println("-> oid:", k)
+		fmt.Println("order info:")
+		fmt.Print(v)
+	}
 }

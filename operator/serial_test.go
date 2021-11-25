@@ -52,21 +52,13 @@ func TestSerialOdr(t *testing.T) {
 		t.Fatal("create order failed")
 	}
 
-	// marshal order
-	buf, err := odr.Marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// put into db
-	k := utils.Uint64ToByte(1)
-	err = db.WriteDB(Op.orderDB, k, buf)
+	err = Op.StoreOrder(odr)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// read from db
-	k = utils.Uint64ToByte(1)
+	k := utils.Uint64ToByte(1)
 	newBuf, err := db.ReadDB(Op.orderDB, k)
 	if err != nil {
 		t.Fatal(err)
@@ -139,17 +131,7 @@ func TestSerialChk(t *testing.T) {
 		CheckSig:  utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
 	}
 
-	// marshal chk
-	buf, err := chk.Marshal()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// put chk into db
-	err = db.WriteDB(Op.chkDB, chk.ToKey(), buf)
-	if err != nil {
-		t.Fatal(err)
-	}
+	Op.StoreChk(1, chk)
 
 	// read from db
 	newBuf, err := db.ReadDB(Op.chkDB, chk.ToKey())
