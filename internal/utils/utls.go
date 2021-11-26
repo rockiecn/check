@@ -246,3 +246,22 @@ func Uint64ToByte(i uint64) []byte {
 func ByteToUint64(buf []byte) uint64 {
 	return binary.BigEndian.Uint64(buf)
 }
+
+// get key from paycheck for db operation
+// key = to address + nonce
+func ToKey(a common.Address, n uint64) []byte {
+	var key []byte
+	key = append(key, a.Bytes()...)
+	key = append(key, Uint64ToByte(n)...)
+
+	return key
+}
+
+// parse key to provider address and nonce
+func FromKey(key []byte) (common.Address, uint64) {
+	// provider address, 20 bytes
+	proAddr := common.BytesToAddress(key[:20])
+	// nonce
+	n := ByteToUint64(key[20:])
+	return proAddr, n
+}

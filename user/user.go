@@ -2,11 +2,14 @@ package user
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/db"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 // nonce to check
@@ -19,10 +22,12 @@ type User struct {
 
 	// address to paychecks
 	Pool map[common.Address]Paychecks
+
+	dbfile string
 }
 
 type IUser interface {
-	StoreCheck(chk *check.Check) error
+	Put(pchk *check.Paycheck) error
 	Pay(to common.Address, dataValue *big.Int) (*check.Paycheck, error)
 }
 
@@ -35,15 +40,16 @@ func New(sk string) (IUser, error) {
 		UserSK:   sk,
 		UserAddr: addr,
 		Pool:     make(map[common.Address]Paychecks),
+		dbfile:   "user.db",
 	}
 
 	return user, nil
 }
 
-// generate a paycheck from check ,and store it into pool
-func (user *User) StoreCheck(chk *check.Check) error {
+// generate a paycheck from check
+func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	if chk == nil {
-		return errors.New("check nil")
+		return nil, errors.New("check nil")
 	}
 
 	pchk := &check.Paycheck{
@@ -53,25 +59,78 @@ func (user *User) StoreCheck(chk *check.Check) error {
 
 	err := pchk.Sign(user.UserSK)
 	if err != nil {
-		return errors.New("paycheck sign error")
+		return nil, errors.New("paycheck sign error")
 	}
 
-	// create paychecks for a new provider
-	if user.Pool[chk.ToAddr] == nil {
-		user.Pool[chk.ToAddr] = make(Paychecks)
-		// store paycheck into pool
-		user.Pool[chk.ToAddr][chk.Nonce] = pchk
-		return nil
+	return pchk, nil
+}
+
+// put a paycheck into pool
+func (user *User) Put(pchk *check.Paycheck) error {
+
+	// put into pool
+	if user.Pool[pchk.ToAddr] == nil {
+		user.Pool[pchk.ToAddr] = make(Paychecks)
+		user.Pool[pchk.ToAddr][pchk.Nonce] = pchk
 	} else {
-		if user.Pool[chk.ToAddr][chk.Nonce] != nil {
+		if user.Pool[pchk.ToAddr][pchk.Nonce] != nil {
 			return errors.New("paycheck with same nonce already exist in pool")
-		} else {
-			// store paycheck into pool
-			user.Pool[chk.ToAddr][chk.Nonce] = pchk
-			return nil
+		}
+		user.Pool[pchk.ToAddr][pchk.Nonce] = pchk
+	}
+
+	return nil
+}
+
+// serialize and store a paycheck into db
+func (user *User) Store(pchk *check.Paycheck) error {
+	// serialize paycheck
+	b, err := pchk.Marshal()
+	if err != nil {
+		return err
+	}
+	// write db
+	err = db.WriteDB(user.dbfile, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// restore all paychecks from db
+func (user *User) Restore() error {
+	db, err := leveldb.OpenFile(user.dbfile, nil)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// read data from db
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		//k := iter.Key()
+		v := iter.Value()
+		pchk := &check.Paycheck{}
+		err := pchk.UnMarshal(v)
+		if err != nil {
+			return err
+		}
+
+		// put pchk into memory
+		err = user.Put(pchk)
+		if err != nil {
+			return err
 		}
 	}
 
+	iter.Release()
+	err = iter.Error()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Pay- Create a paycheck legal for paying dataValue
@@ -132,5 +191,17 @@ func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Payche
 		*theOne = *newPchk
 
 		return theOne, nil
+	}
+}
+
+// show pool
+func (user *User) ShowPool() {
+	for k, v := range user.Pool {
+		fmt.Println("-> provider:", k)
+		for k1, v1 := range v {
+			fmt.Println("nonce:", k1)
+			fmt.Println("paycheck info:")
+			fmt.Println(*v1)
+		}
 	}
 }

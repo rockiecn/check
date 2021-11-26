@@ -159,16 +159,6 @@ func (chk *Check) Equal(c2 *Check) (bool, error) {
 	return true, nil
 }
 
-// get key from paycheck for db operation
-// key = to address + nonce
-func (chk *Check) ToKey() []byte {
-	var key []byte
-	key = append(key, chk.ToAddr.Bytes()...)
-	key = append(key, utils.Uint64ToByte(chk.Nonce)...)
-
-	return key
-}
-
 // Paycheck is an auto generated low-level Go binding around an user-defined struct.
 type Paycheck struct {
 	*Check
@@ -367,11 +357,4 @@ func (pchk *Paycheck) UnMarshal(buf []byte) error {
 		fmt.Println("error:", err)
 	}
 	return nil
-}
-
-// get key from paycheck for db operation
-// key = to address + nonce
-func (pchk *Paycheck) ToKey() []byte {
-	key := pchk.Check.ToKey()
-	return key
 }

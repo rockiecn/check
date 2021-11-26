@@ -139,8 +139,14 @@ func InitOrder(
 	// simulate user receive check from operator
 	usrChk := new(check.Check)
 	*usrChk = *opChk
-	// user store check into pool
-	err = usr.StoreCheck(usrChk)
+
+	// generate paycheck from check
+	pchk, err := usr.GenPchk(usrChk)
+	if err != nil {
+		return err
+	}
+	// user put paycheck into pool
+	err = usr.Put(pchk)
 	if err != nil {
 		return err
 	}

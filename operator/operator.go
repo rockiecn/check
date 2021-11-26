@@ -90,7 +90,7 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 	return nil
 }
 
-// restore orders from db when start operator
+// restore orders from db
 func (op *Operator) RestoreOrder() error {
 	db, err := leveldb.OpenFile(op.orderDB, nil)
 	if err != nil {
@@ -125,7 +125,7 @@ func (op *Operator) RestoreOrder() error {
 	return nil
 }
 
-// restore checks from db when start operator
+// restore checks from db
 func (op *Operator) RestoreChk() error {
 	db, err := leveldb.OpenFile(op.checkDB, nil)
 	if err != nil {
@@ -368,7 +368,7 @@ func (op *Operator) SetCtrAddr(addr common.Address) {
 }
 
 // show all checks in pool
-func (op *Operator) ShowChk() {
+func (op *Operator) ShowChkPool() {
 	for k, v := range op.OM.ChkPool {
 		fmt.Println("-> oid:", k)
 		fmt.Println("check info:")
@@ -377,7 +377,7 @@ func (op *Operator) ShowChk() {
 }
 
 // show all orders in pool
-func (op *Operator) ShowOdr() {
+func (op *Operator) ShowOdrPool() {
 	for k, v := range op.OM.OdrPool {
 		fmt.Println("-> oid:", k)
 		fmt.Println("order info:")

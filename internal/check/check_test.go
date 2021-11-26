@@ -183,6 +183,23 @@ func TestPaycheckTool(t *testing.T) {
 	fmt.Printf("paychecksig: %x\n", input.PaycheckSig)
 }
 
+var chk0 = &Check{
+	Value:     utils.String2BigInt("100000000000000000000"),
+	TokenAddr: common.HexToAddress("b213d01542d129806d664248a380db8b12059061"),
+	Nonce:     0,
+	FromAddr:  common.HexToAddress("Ab8483F64d9C6d1EcF9b849Ae677dD3315835cb2"),
+	ToAddr:    common.HexToAddress("4B20993Bc481177ec7E8f571ceCaE8A9e22C02db"),
+	OpAddr:    common.HexToAddress("5B38Da6a701c568545dCfcB03FcB875f56beddC4"),
+	CtrAddr:   common.HexToAddress("1c91347f2A44538ce62453BEBd9Aa907C662b4bD"),
+	CheckSig:  utils.String2Byte("0e4f125c12d47a91508494d95e710476a7a0c97ed3ce9903ab3df77614de251156b9cbb50ab7bc73fea5ee287a8c1283b02a1eda5b10bc8022f25ea571f68a6801"),
+}
+
+func TestKey(t *testing.T) {
+	k := utils.ToKey(chk0.ToAddr, chk0.Nonce)
+	addr, n := utils.FromKey(k)
+	fmt.Printf("addr:%x\n, nonce:%d\n", addr, n)
+}
+
 /*
 func TestCheckVerify(t *testing.T) {
 
