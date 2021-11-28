@@ -1,13 +1,6 @@
 package provider
 
-import (
-	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/utils"
-)
-
+/*
 func TestVerifyOK(t *testing.T) {
 	input := &check.Paycheck{
 		Check: &check.Check{
@@ -38,6 +31,7 @@ func TestVerifyOK(t *testing.T) {
 	}
 
 }
+*/
 
 /*
 func TestSendTx(t *testing.T) {

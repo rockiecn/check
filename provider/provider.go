@@ -3,26 +3,31 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
+	"github.com/rockiecn/check/internal/db"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/syndtr/goleveldb/leveldb"
 )
 
 type Provider struct {
 	ProviderSK   string
 	ProviderAddr common.Address
+	Host         string
 
-	Host string
 	Pool map[uint64]*check.Paycheck
+
+	dbfile string
 }
 
 type IProvider interface {
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
-	StorePaycheck(pchk *check.Paycheck) error
+	Put(pchk *check.Paycheck) error
 	GetNextPayable() (*check.Paycheck, error)
 	Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error)
 	QueryBalance() (*big.Int, error)
@@ -38,6 +43,7 @@ func New(sk string) (IProvider, error) {
 		ProviderAddr: addr,
 		Host:         "http://localhost:8545",
 		Pool:         make(map[uint64]*check.Paycheck),
+		dbfile:       "provider.db",
 	}
 
 	return pro, nil
@@ -84,8 +90,8 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 	}
 }
 
-// store a paycheck into pool
-func (pro *Provider) StorePaycheck(pchk *check.Paycheck) error {
+// put a paycheck into pool
+func (pro *Provider) Put(pchk *check.Paycheck) error {
 	if pchk == nil {
 		return errors.New("paycheck nil")
 	}
@@ -228,4 +234,64 @@ func (pro *Provider) QueryBalance() (*big.Int, error) {
 	}
 
 	return balance, nil
+}
+
+// serialize and store a paycheck into db
+func (pro *Provider) Store(pchk *check.Paycheck) error {
+	// serialize paycheck
+	b, err := pchk.Marshal()
+	if err != nil {
+		return err
+	}
+	// write db
+	err = db.WriteDB(pro.dbfile, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// restore all paychecks from db
+func (pro *Provider) Restore() error {
+	db, err := leveldb.OpenFile(pro.dbfile, nil)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// read data from db
+	iter := db.NewIterator(nil, nil)
+	for iter.Next() {
+		//k := iter.Key()
+		v := iter.Value()
+		pchk := &check.Paycheck{}
+		err := pchk.UnMarshal(v)
+		if err != nil {
+			return err
+		}
+
+		// put pchk into memory
+		err = pro.Put(pchk)
+		if err != nil {
+			return err
+		}
+	}
+
+	iter.Release()
+	err = iter.Error()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// show pool
+func (pro *Provider) ShowPool() {
+	for k, v := range pro.Pool {
+		fmt.Println("nonce:", k)
+		fmt.Println("paycheck info:")
+		fmt.Println(*v)
+	}
 }

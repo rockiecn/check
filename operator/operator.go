@@ -21,7 +21,8 @@ type Operator struct {
 	OpSK    string
 	OpAddr  common.Address
 	CtrAddr common.Address
-	Nonces  map[common.Address]uint64 // nonce for next check
+
+	Nonces map[common.Address]uint64 // nonce for next check
 
 	orderDB string // dbfile for order
 	checkDB string // dbfile for check
@@ -74,22 +75,6 @@ func (op *Operator) StoreOrder(odr *odrmgr.Order) error {
 	return nil
 }
 
-// store a check into db
-func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
-	// serialize
-	b, err := chk.Marshal()
-	if err != nil {
-		return err
-	}
-	// write db
-	err = db.WriteDB(op.checkDB, utils.Uint64ToByte(oid), b)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // restore orders from db
 func (op *Operator) RestoreOrder() error {
 	db, err := leveldb.OpenFile(op.orderDB, nil)
@@ -118,6 +103,22 @@ func (op *Operator) RestoreOrder() error {
 
 	iter.Release()
 	err = iter.Error()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// store a check into db
+func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
+	// serialize
+	b, err := chk.Marshal()
+	if err != nil {
+		return err
+	}
+	// write db
+	err = db.WriteDB(op.checkDB, utils.Uint64ToByte(oid), b)
 	if err != nil {
 		return err
 	}
@@ -266,7 +267,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // generate a new check for an order
 // first get order with oid
 // then generate a check from order info
-// last, put the check into order
+// increase nonce by 1
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
 	odr, err := op.OM.GetOrder(oid)
@@ -291,6 +292,9 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// increase nonce by 1
+	op.Nonces[odr.To] = nonce + 1
 
 	return chk, nil
 }

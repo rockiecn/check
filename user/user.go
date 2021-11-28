@@ -47,6 +47,7 @@ func New(sk string) (IUser, error) {
 }
 
 // generate a paycheck from check
+// check is got from operator by order id
 func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	if chk == nil {
 		return nil, errors.New("check nil")

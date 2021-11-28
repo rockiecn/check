@@ -185,7 +185,7 @@ func Pay(
 	}
 
 	// provider store a paycheck into pool
-	err = pro.StorePaycheck(proPC)
+	err = pro.Put(proPC)
 	if err != nil {
 		return 0, errors.New("store paycheck error")
 	}

@@ -109,8 +109,7 @@ func TestBatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fmt.Println("-> Order to Check")
-	// operator create 2 checks from orders
+	// operator create checks from orders
 	chk0, err := op.CreateCheck(0)
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +188,7 @@ func TestBatch(t *testing.T) {
 
 	// check if maxNonce correct
 	if bc.MaxNonce != 2 {
-		t.Fatal("max nonce in batch check error")
+		t.Fatal("max nonce in batch check error:", bc.MaxNonce)
 	} else {
 		fmt.Println("OK- max nonce is right:", bc.MaxNonce)
 	}
