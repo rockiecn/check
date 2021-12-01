@@ -8,8 +8,8 @@ import (
 
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/common"
-	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
+	"github.com/rockiecn/check/operator"
 )
 
 // Process:
@@ -41,7 +41,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// create  order for each provider
-	odr0 := &odrmgr.Order{
+	odr0 := &operator.Order{
 		ID:    0,
 		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
@@ -58,13 +58,13 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err = op.OM.PutOrder(odr0)
+	err = op.PutOrder(odr0)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// create  order for each provider
-	odr1 := &odrmgr.Order{
+	odr1 := &operator.Order{
 		ID:    1,
 		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
@@ -81,13 +81,13 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err = op.OM.PutOrder(odr1)
+	err = op.PutOrder(odr1)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// create  order for each provider
-	odr2 := &odrmgr.Order{
+	odr2 := &operator.Order{
 		ID:    2,
 		Token: common.Token,
 		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
@@ -104,7 +104,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	// operator store order into pool
-	err = op.OM.PutOrder(odr2)
+	err = op.PutOrder(odr2)
 	if err != nil {
 		t.Fatal(err)
 	}

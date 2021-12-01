@@ -22,7 +22,9 @@ type Provider struct {
 
 	Pool map[uint64]*check.Paycheck
 
-	dbfile string
+	db *leveldb.DB
+
+	ClosedbFunc func(*leveldb.DB) error
 }
 
 type IProvider interface {
@@ -33,6 +35,10 @@ type IProvider interface {
 	QueryBalance() (*big.Int, error)
 }
 
+// db file name
+var proDBfile = "provider.db"
+
+// create a provider out of sk
 func New(sk string) (IProvider, error) {
 	addr, err := utils.SkToAddr(sk)
 	if err != nil {
@@ -43,7 +49,22 @@ func New(sk string) (IProvider, error) {
 		ProviderAddr: addr,
 		Host:         "http://localhost:8545",
 		Pool:         make(map[uint64]*check.Paycheck),
-		dbfile:       "provider.db",
+	}
+
+	// open provider db
+	pro.db, err = leveldb.OpenFile(proDBfile, nil)
+	if err != nil {
+		fmt.Println("open db error: ", err)
+		return nil, err
+	}
+
+	// declare close func
+	pro.ClosedbFunc = func(db *leveldb.DB) error {
+		err := db.Close()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	return pro, nil
@@ -239,12 +260,12 @@ func (pro *Provider) QueryBalance() (*big.Int, error) {
 // serialize and store a paycheck to db
 func (pro *Provider) Store(pchk *check.Paycheck) error {
 	// serialize paycheck
-	b, err := pchk.Marshal()
+	b, err := pchk.Serialize()
 	if err != nil {
 		return err
 	}
 	// write db
-	err = db.WriteDB(pro.dbfile, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	err = db.WriteDB(pro.db, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
 	if err != nil {
 		return err
 	}
@@ -254,19 +275,17 @@ func (pro *Provider) Store(pchk *check.Paycheck) error {
 
 // restore all paychecks from db
 func (pro *Provider) Restore() error {
-	db, err := leveldb.OpenFile(pro.dbfile, nil)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
 
+	if pro.db == nil {
+		return errors.New("nil db")
+	}
 	// read data from db
-	iter := db.NewIterator(nil, nil)
+	iter := pro.db.NewIterator(nil, nil)
 	for iter.Next() {
 		//k := iter.Key()
 		v := iter.Value()
 		pchk := &check.Paycheck{}
-		err := pchk.UnMarshal(v)
+		err := pchk.DeSerialize(v)
 		if err != nil {
 			return err
 		}
@@ -279,7 +298,7 @@ func (pro *Provider) Restore() error {
 	}
 
 	iter.Release()
-	err = iter.Error()
+	err := iter.Error()
 	if err != nil {
 		return err
 	}

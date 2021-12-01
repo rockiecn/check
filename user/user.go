@@ -23,7 +23,9 @@ type User struct {
 	// address to paychecks
 	Pool map[common.Address]Paychecks
 
-	dbfile string
+	db *leveldb.DB
+
+	ClosedbFunc func(*leveldb.DB) error
 }
 
 type IUser interface {
@@ -31,7 +33,10 @@ type IUser interface {
 	Pay(to common.Address, dataValue *big.Int) (*check.Paycheck, error)
 }
 
-// create an user object from sk
+// user db file name
+var userDBfile = "user.db"
+
+// create an user object out of sk
 func New(sk string) (IUser, error) {
 	addr, err := utils.SkToAddr(sk)
 	if err != nil {
@@ -41,7 +46,22 @@ func New(sk string) (IUser, error) {
 		UserSK:   sk,
 		UserAddr: addr,
 		Pool:     make(map[common.Address]Paychecks),
-		dbfile:   "user.db",
+	}
+
+	// open user db
+	user.db, err = leveldb.OpenFile(userDBfile, nil)
+	if err != nil {
+		fmt.Println("open db error: ", err)
+		return nil, err
+	}
+
+	// declare close func
+	user.ClosedbFunc = func(db *leveldb.DB) error {
+		err := db.Close()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	return user, nil
@@ -87,12 +107,12 @@ func (user *User) Put(pchk *check.Paycheck) error {
 // serialize and store a paycheck into db
 func (user *User) Store(pchk *check.Paycheck) error {
 	// serialize paycheck
-	b, err := pchk.Marshal()
+	b, err := pchk.Serialize()
 	if err != nil {
 		return err
 	}
 	// write db
-	err = db.WriteDB(user.dbfile, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	err = db.WriteDB(user.db, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
 	if err != nil {
 		return err
 	}
@@ -102,19 +122,17 @@ func (user *User) Store(pchk *check.Paycheck) error {
 
 // restore all paychecks from db
 func (user *User) Restore() error {
-	db, err := leveldb.OpenFile(user.dbfile, nil)
-	if err != nil {
-		return err
+	if user.db == nil {
+		return errors.New("nil db")
 	}
-	defer db.Close()
 
 	// read data from db
-	iter := db.NewIterator(nil, nil)
+	iter := user.db.NewIterator(nil, nil)
 	for iter.Next() {
 		//k := iter.Key()
 		v := iter.Value()
 		pchk := &check.Paycheck{}
-		err := pchk.UnMarshal(v)
+		err := pchk.DeSerialize(v)
 		if err != nil {
 			return err
 		}
@@ -127,7 +145,7 @@ func (user *User) Restore() error {
 	}
 
 	iter.Release()
-	err = iter.Error()
+	err := iter.Error()
 	if err != nil {
 		return err
 	}

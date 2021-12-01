@@ -9,10 +9,10 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/fxamacker/cbor/v2"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
 	"github.com/rockiecn/check/internal/db"
-	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -24,10 +24,14 @@ type Operator struct {
 
 	Nonces map[common.Address]uint64 // nonce for next check
 
-	orderDB string // dbfile for order
-	checkDB string // dbfile for check
+	// db
+	orderDB *leveldb.DB
+	checkDB *leveldb.DB
 
-	OM *odrmgr.Ordermgr
+	// func for closing db
+	ClosedbFunc func(*leveldb.DB) error
+
+	OM *Ordermgr
 }
 
 type IOperator interface {
@@ -40,6 +44,12 @@ type IOperator interface {
 	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
 
+// db file name of order and check
+var (
+	odrDBfile string = "./order.db"
+	chkDBfile string = "./check.db"
+)
+
 // create an operator out of sk
 func New(sk string) (IOperator, error) {
 	opAddr, err := utils.SkToAddr(sk)
@@ -48,21 +58,41 @@ func New(sk string) (IOperator, error) {
 	}
 
 	op := &Operator{
-		OpSK:    sk,
-		OpAddr:  opAddr,
-		Nonces:  make(map[common.Address]uint64),
-		orderDB: "./order.db",
-		checkDB: "./check.db",
-		OM:      odrmgr.New(),
+		OpSK:   sk,
+		OpAddr: opAddr,
+		Nonces: make(map[common.Address]uint64),
+		OM:     NewMgr(),
+	}
+
+	// open order db
+	op.orderDB, err = leveldb.OpenFile(odrDBfile, nil)
+	if err != nil {
+		fmt.Println("open db error: ", err)
+		return nil, err
+	}
+	// open check db
+	op.checkDB, err = leveldb.OpenFile(chkDBfile, nil)
+	if err != nil {
+		fmt.Println("open db error: ", err)
+		return nil, err
+	}
+
+	// declare close func
+	op.ClosedbFunc = func(db *leveldb.DB) error {
+		err := db.Close()
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 
 	return op, nil
 }
 
 // Store an order into order db
-func (op *Operator) StoreOrder(odr *odrmgr.Order) error {
+func (op *Operator) StoreOrder(odr *Order) error {
 	// serialize
-	b, err := odr.Marshal()
+	b, err := odr.Serialize()
 	if err != nil {
 		return err
 	}
@@ -75,45 +105,48 @@ func (op *Operator) StoreOrder(odr *odrmgr.Order) error {
 	return nil
 }
 
-// restore orders from order db
-func (op *Operator) RestoreOrder() error {
-	db, err := leveldb.OpenFile(op.orderDB, nil)
-	if err != nil {
-		return err
+// restore an order from order db
+func (op *Operator) RestoreOrder(oid uint64) error {
+	if op.checkDB == nil {
+		return errors.New("nil check db")
 	}
-	defer db.Close()
 
 	// read data from db
-	iter := db.NewIterator(nil, nil)
+	iter := op.orderDB.NewIterator(nil, nil)
 	for iter.Next() {
-		//k := iter.Key()
+		k := iter.Key()
 		v := iter.Value()
-		odr := &odrmgr.Order{}
-		err := odr.UnMarshal(v)
-		if err != nil {
-			return err
-		}
 
-		// put into memory
-		err = op.OM.PutOrder(odr)
-		if err != nil {
-			return err
+		// oid
+		o := utils.ByteToUint64(k)
+		// found and put into memory
+		if o == oid {
+			odr := &Order{}
+			err := odr.DeSerialize(v)
+			if err != nil {
+				return err
+			}
+			err = op.PutOrder(odr)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 
 	iter.Release()
-	err = iter.Error()
+	err := iter.Error()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return errors.New("order not found in db")
 }
 
 // store a check into check db
 func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 	// serialize
-	b, err := chk.Marshal()
+	b, err := chk.Serialize()
 	if err != nil {
 		return err
 	}
@@ -126,40 +159,41 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 	return nil
 }
 
-// restore checks from check db
-func (op *Operator) RestoreChk() error {
-	db, err := leveldb.OpenFile(op.checkDB, nil)
-	if err != nil {
-		return err
+// restore a check from check db with oid
+func (op *Operator) RestoreChk(oid uint64) error {
+	if op.checkDB == nil {
+		return errors.New("nil check db")
 	}
-	defer db.Close()
 
 	// read data from db
-	iter := db.NewIterator(nil, nil)
+	iter := op.checkDB.NewIterator(nil, nil)
 	for iter.Next() {
 		k := iter.Key()
 		v := iter.Value()
-		chk := &check.Check{}
-		err := chk.UnMarshal(v)
-		if err != nil {
-			return err
-		}
 
-		oid := utils.ByteToUint64(k)
-		// put into memory
-		err = op.OM.PutCheck(oid, chk)
-		if err != nil {
-			return err
+		o := utils.ByteToUint64(k)
+		// found and put into memory
+		if o == oid {
+			chk := &check.Check{}
+			err := chk.DeSerialize(v)
+			if err != nil {
+				return err
+			}
+			err = op.PutCheck(oid, chk)
+			if err != nil {
+				return err
+			}
+			return nil
 		}
 	}
 
 	iter.Release()
-	err = iter.Error()
+	err := iter.Error()
 	if err != nil {
 		return err
 	}
 
-	return nil
+	return errors.New("check not found in db")
 }
 
 // value: the money given to new contract
@@ -270,7 +304,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // increase next check nonce by 1
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
-	odr, err := op.OM.GetOrder(oid)
+	odr, err := op.GetOrder(oid)
 	if err != nil {
 		return nil, err
 	}
@@ -278,13 +312,15 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 	nonce := op.Nonces[odr.To]
 
 	chk := &check.Check{
-		Value:     odr.Value,
-		TokenAddr: odr.Token,
-		FromAddr:  odr.From,
-		ToAddr:    odr.To,
-		Nonce:     nonce,
-		OpAddr:    op.OpAddr,
-		CtrAddr:   op.CtrAddr,
+		CheckInfo: check.CheckInfo{
+			Value:     odr.Value,
+			TokenAddr: odr.Token,
+			FromAddr:  odr.From,
+			ToAddr:    odr.To,
+			Nonce:     nonce,
+			OpAddr:    op.OpAddr,
+			CtrAddr:   op.CtrAddr,
+		},
 	}
 
 	// signed by operator
@@ -387,4 +423,247 @@ func (op *Operator) ShowOdrPool() {
 		fmt.Println("order info:")
 		fmt.Println(v)
 	}
+}
+
+// get an order by id
+func (op *Operator) GetOrder(oid uint64) (*Order, error) {
+	// if not in pool, read from db
+	if op.OM.OdrPool[oid] == nil {
+		k := utils.Uint64ToByte(oid)
+		b, err := db.ReadDB(op.orderDB, k)
+		if err != nil {
+			return nil, err
+		}
+		odr := &Order{}
+		err = odr.DeSerialize(b)
+		if err != nil {
+			return nil, err
+		}
+
+		//put into pool
+		err = op.PutOrder(odr)
+		if err != nil {
+			return nil, err
+		}
+		return odr, nil
+	}
+
+	return op.OM.OdrPool[oid], nil
+}
+
+// put an order into pool, then store into db
+func (op *Operator) PutOrder(odr *Order) error {
+	if odr == nil {
+		return errors.New("order is nil")
+	}
+
+	// put order into pool
+	op.OM.OdrPool[odr.ID] = odr
+
+	// write db
+	k := utils.Uint64ToByte(odr.ID)
+	b, err := odr.Serialize()
+	if err != nil {
+		return err
+	}
+	err = db.WriteDB(op.orderDB, k, b)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// delete an order from pool by ID
+func (op *Operator) DelOrder(oid uint64) {
+	delete(op.OM.OdrPool, oid)
+}
+
+// get a check from pool by oid
+func (op *Operator) GetCheck(oid uint64) (*check.Check, error) {
+	// if not in pool, read from db
+	if op.OM.ChkPool[oid] == nil {
+		k := utils.Uint64ToByte(oid)
+		b, err := db.ReadDB(op.checkDB, k)
+		if err != nil {
+			return nil, err
+		}
+		chk := &check.Check{}
+		err = chk.DeSerialize(b)
+		if err != nil {
+			return nil, err
+		}
+
+		//put check into pool
+		err = op.PutCheck(oid, chk)
+		if err != nil {
+			return nil, err
+		}
+		return chk, nil
+	}
+
+	return op.OM.ChkPool[oid], nil
+}
+
+// store a check into pool by oid
+func (op *Operator) PutCheck(oid uint64, chk *check.Check) error {
+	if chk == nil {
+		return errors.New("check is nil")
+	}
+
+	// put check into pool
+	op.OM.ChkPool[oid] = chk
+
+	// write db
+	k := utils.Uint64ToByte(oid)
+	b, err := chk.Serialize()
+	if err != nil {
+		return err
+	}
+	err = db.WriteDB(op.orderDB, k, b)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// delete a check from pool by ID
+func (op *Operator) DelCheck(oid uint64) {
+	delete(op.OM.ChkPool, oid)
+}
+
+// get order state
+func (op *Operator) GetState(oid uint64) (uint8, error) {
+	odr, err := op.GetOrder(oid)
+	if err != nil {
+		return 0, err
+	}
+	return odr.State, nil
+}
+
+// set order state
+func (op *Operator) SetState(oid uint64, st uint8) error {
+	odr, err := op.GetOrder(oid)
+	if err != nil {
+		return err
+	}
+	odr.State = st
+	return nil
+}
+
+// pay process for an specific order
+func (op *Operator) UserPay(oid uint64) {
+	// set order state to paid after user paid the order
+	// create and store check
+}
+
+// order info
+type Order struct {
+	ID uint64 // 订单ID
+
+	Token common.Address // 货币类型
+	Value *big.Int       // 货币数量
+	From  common.Address // user地址
+	To    common.Address // provider地址
+
+	Time int64 // 订单提交时间
+
+	Name  string // 购买人姓名
+	Tel   string // 购买人联系方式
+	Email string // 接收支票的邮件地址
+
+	// 0 initial
+	// 1 order paid
+	// 2 created check
+	State uint8 // 标记是否已付款;
+}
+
+// compare orders
+func (odr *Order) Equal(o2 *Order) (bool, error) {
+	if odr.ID != o2.ID {
+		return false, errors.New("id not equal")
+	}
+	if odr.Token != o2.Token {
+		return false, errors.New("token not equal")
+	}
+	if odr.Value.String() != o2.Value.String() {
+		return false, errors.New("value not equal")
+	}
+	if odr.From != o2.From {
+		return false, errors.New("from not equal")
+	}
+	if odr.To != o2.To {
+		return false, errors.New("to not equal")
+	}
+	if odr.Time != o2.Time {
+		return false, errors.New("time not equal")
+	}
+	if odr.Name != o2.Name {
+		return false, errors.New("name not equal")
+	}
+	if odr.Tel != o2.Tel {
+		return false, errors.New("tel not equal")
+	}
+	if odr.Email != o2.Email {
+		return false, errors.New("email not equal")
+	}
+	if odr.State != o2.State {
+		return false, errors.New("state not equal")
+	}
+
+	return true, nil
+}
+
+// serialize an order with cbor
+func (odr *Order) Serialize() ([]byte, error) {
+
+	if odr == nil {
+		return nil, errors.New("nil order")
+	}
+
+	b, err := cbor.Marshal(*odr)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// decode a buf into order
+func (odr *Order) DeSerialize(buf []byte) error {
+	if odr == nil {
+		return errors.New("nil order")
+	}
+	if buf == nil {
+		return errors.New("nil buf")
+	}
+
+	err := cbor.Unmarshal(buf, odr)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type Ordermgr struct {
+	ID      uint64                  // ID used for create next order
+	OdrPool map[uint64]*Order       // id -> order
+	ChkPool map[uint64]*check.Check // id -> check
+}
+
+// create a new order manager
+func NewMgr() *Ordermgr {
+	om := &Ordermgr{
+		ID:      0,
+		OdrPool: make(map[uint64]*Order),
+		ChkPool: make(map[uint64]*check.Check),
+	}
+	return om
+}
+
+// get ID for new order, and increase ID by 1
+func (mgr *Ordermgr) NewID() uint64 {
+	id := mgr.ID
+	mgr.ID++
+	return id
 }

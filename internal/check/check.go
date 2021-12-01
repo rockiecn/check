@@ -12,7 +12,8 @@ import (
 	"github.com/rockiecn/check/internal/utils"
 )
 
-type Check struct {
+// basic information
+type CheckInfo struct {
 	Value     *big.Int
 	TokenAddr common.Address
 	Nonce     uint64
@@ -20,20 +21,25 @@ type Check struct {
 	ToAddr    common.Address
 	OpAddr    common.Address
 	CtrAddr   common.Address
-	CheckSig  []byte
+}
+
+// check with signature
+type Check struct {
+	CheckInfo
+	CheckSig []byte
 }
 
 type ICheck interface {
 	Sign(sk string) error
 	Verify() (bool, error)
-	Serialize() []byte
+	Hash() []byte
 	GetNonce() (uint64, error)
 }
 
 // Sign check
 func (chk *Check) Sign(sk string) error {
 
-	hash := chk.Serialize()
+	hash := chk.Hash()
 
 	//fmt.Printf("sign hash:%x\n", hash)
 	//
@@ -58,7 +64,7 @@ func (chk *Check) Sign(sk string) error {
 // verify signature of a check
 func (chk *Check) Verify() bool {
 
-	hash := chk.Serialize()
+	hash := chk.Hash()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, chk.CheckSig)
@@ -75,7 +81,7 @@ func (chk *Check) Verify() bool {
 }
 
 // calc hash of check, used to sign check and verify
-func (chk *Check) Serialize() []byte {
+func (chk *Check) Hash() []byte {
 
 	valuePad32 := common.LeftPadBytes(chk.Value.Bytes(), 32)
 	tokenBytes := chk.TokenAddr.Bytes()
@@ -100,7 +106,7 @@ func (chk *Check) Serialize() []byte {
 }
 
 // serialize an order with cbor
-func (chk *Check) Marshal() ([]byte, error) {
+func (chk *Check) Serialize() ([]byte, error) {
 
 	if chk == nil {
 		return nil, errors.New("nil chk")
@@ -114,7 +120,7 @@ func (chk *Check) Marshal() ([]byte, error) {
 }
 
 // decode a buf into order
-func (chk *Check) UnMarshal(buf []byte) error {
+func (chk *Check) DeSerialize(buf []byte) error {
 	if chk == nil {
 		return errors.New("nil chk")
 	}
@@ -131,27 +137,13 @@ func (chk *Check) UnMarshal(buf []byte) error {
 
 // equal
 func (chk *Check) Equal(c2 *Check) (bool, error) {
-	if chk.Value.Cmp(c2.Value) != 0 {
-		return false, errors.New("value not equal")
+
+	hash1 := chk.Hash()
+	hash2 := c2.Hash()
+	if !bytes.Equal(hash1, hash2) {
+		return false, errors.New("check info not same")
 	}
-	if chk.TokenAddr != c2.TokenAddr {
-		return false, errors.New("token not equal")
-	}
-	if chk.Nonce != c2.Nonce {
-		return false, errors.New("nonce not equal")
-	}
-	if chk.FromAddr != c2.FromAddr {
-		return false, errors.New("from not equal")
-	}
-	if chk.ToAddr != c2.ToAddr {
-		return false, errors.New("to not equal")
-	}
-	if chk.OpAddr != c2.OpAddr {
-		return false, errors.New("op not equal")
-	}
-	if chk.CtrAddr != c2.CtrAddr {
-		return false, errors.New("contrAddr not equal")
-	}
+
 	if !bytes.Equal(chk.CheckSig, c2.CheckSig) {
 		return false, errors.New("check sig not equal")
 	}
@@ -169,7 +161,7 @@ type Paycheck struct {
 // Sign paycheck by user's sk
 func (pchk *Paycheck) Sign(sk string) error {
 
-	hash := pchk.Serialize()
+	hash := pchk.Hash()
 
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
@@ -192,7 +184,7 @@ func (pchk *Paycheck) Sign(sk string) error {
 
 // verify signature of paycheck
 func (pchk *Paycheck) Verify() bool {
-	hash := pchk.Serialize()
+	hash := pchk.Hash()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, pchk.PaycheckSig)
@@ -209,7 +201,7 @@ func (pchk *Paycheck) Verify() bool {
 }
 
 // calc hash of check, used to sign check and verify
-func (pchk *Paycheck) Serialize() []byte {
+func (pchk *Paycheck) Hash() []byte {
 
 	valuePad32 := common.LeftPadBytes(pchk.Check.Value.Bytes(), 32)
 	noncePad8 := common.LeftPadBytes(utils.Uint64ToByte(pchk.Check.Nonce), 8)
@@ -242,14 +234,46 @@ func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	if pchk.PayValue.String() != p2.PayValue.String() {
 		return false, errors.New("pay value not equal")
 	}
+
 	if !bytes.Equal(pchk.PaycheckSig, p2.PaycheckSig) {
 		return false, errors.New("paycheck sig not equal")
 	}
 
 	return true, nil
+}
+
+// serialize an order with cbor
+func (pchk *Paycheck) Serialze() ([]byte, error) {
+
+	if pchk == nil {
+		return nil, errors.New("nil pchk")
+	}
+
+	b, err := cbor.Marshal(*pchk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return b, nil
+}
+
+// decode a buf into order
+func (pchk *Paycheck) DeSerialize(buf []byte) error {
+	if pchk == nil {
+		return errors.New("nil pchk")
+	}
+	if buf == nil {
+		return errors.New("nil buf")
+	}
+
+	err := cbor.Unmarshal(buf, pchk)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return nil
 }
 
 type BatchCheck struct {
@@ -267,7 +291,7 @@ type BatchCheck struct {
 // Sign BatchCheck by opertator's sk
 func (bc *BatchCheck) Sign(sk string) error {
 
-	hash := bc.Serialize()
+	hash := bc.Hash()
 
 	//
 	priKeyECDSA, err := crypto.HexToECDSA(sk)
@@ -288,7 +312,7 @@ func (bc *BatchCheck) Sign(sk string) error {
 
 // verify signature of paycheck
 func (bc *BatchCheck) Verify() (bool, error) {
-	hash := bc.Serialize()
+	hash := bc.Hash()
 
 	// signature to public key
 	pubKeyECDSA, err := crypto.SigToPub(hash, bc.BatchSig)
@@ -305,7 +329,7 @@ func (bc *BatchCheck) Verify() (bool, error) {
 }
 
 // calc hash of BatchCheck, used to sign and verify
-func (bc *BatchCheck) Serialize() []byte {
+func (bc *BatchCheck) Hash() []byte {
 
 	opBytes := bc.OpAddr.Bytes()
 	toBytes := bc.ToAddr.Bytes()
@@ -327,34 +351,4 @@ func (bc *BatchCheck) Serialize() []byte {
 	)
 
 	return hash
-}
-
-// serialize an order with cbor
-func (pchk *Paycheck) Marshal() ([]byte, error) {
-
-	if pchk == nil {
-		return nil, errors.New("nil pchk")
-	}
-
-	b, err := cbor.Marshal(*pchk)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	return b, nil
-}
-
-// decode a buf into order
-func (pchk *Paycheck) UnMarshal(buf []byte) error {
-	if pchk == nil {
-		return errors.New("nil pchk")
-	}
-	if buf == nil {
-		return errors.New("nil buf")
-	}
-
-	err := cbor.Unmarshal(buf, pchk)
-	if err != nil {
-		fmt.Println("error:", err)
-	}
-	return nil
 }

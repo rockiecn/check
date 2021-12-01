@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/odrmgr"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/rockiecn/check/operator"
 	"github.com/rockiecn/check/provider"
@@ -111,7 +110,7 @@ func InitOrder(
 	pro *provider.Provider,
 	v string,
 ) error {
-	odr := &odrmgr.Order{
+	odr := &operator.Order{
 		ID:    id,
 		Token: Token,
 		Value: utils.String2BigInt(v), // order value: 0.3 eth
@@ -127,7 +126,7 @@ func InitOrder(
 		return errors.New("create order failed")
 	}
 
-	err := op.OM.PutOrder(odr)
+	err := op.PutOrder(odr)
 	if err != nil {
 		return err
 	}

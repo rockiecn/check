@@ -1,7 +1,7 @@
 package db
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -9,15 +9,13 @@ import (
 // db operation
 // key for order: oid
 // key for paycheck: provider address + nonce
-func WriteDB(dbfile string, key []byte, buf []byte) error {
-	db, err := leveldb.OpenFile(dbfile, nil)
-	if err != nil {
-		fmt.Println("open db error: ", err)
-		return err
-	}
-	defer db.Close()
+func WriteDB(db *leveldb.DB, key []byte, buf []byte) error {
 
-	err = db.Put(key, buf, nil)
+	if db == nil {
+		return errors.New("nil db")
+	}
+
+	err := db.Put(key, buf, nil)
 	if err != nil {
 		return err
 	}
@@ -25,13 +23,10 @@ func WriteDB(dbfile string, key []byte, buf []byte) error {
 }
 
 // db operation
-func ReadDB(dbfile string, key []byte) ([]byte, error) {
-	db, err := leveldb.OpenFile(dbfile, nil)
-	if err != nil {
-		fmt.Println("open db error: ", err)
-		return nil, err
+func ReadDB(db *leveldb.DB, key []byte) ([]byte, error) {
+	if db == nil {
+		return nil, errors.New("nil db")
 	}
-	defer db.Close()
 
 	buf, err := db.Get(key, nil)
 	if err != nil {
