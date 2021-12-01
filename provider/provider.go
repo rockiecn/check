@@ -101,7 +101,7 @@ func (pro *Provider) Put(pchk *check.Paycheck) error {
 	return nil
 }
 
-// get the next payable paycheck in pool
+// get the next payable paycheck from pool
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 
 	var (
@@ -176,7 +176,7 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 	return tx, nil
 }
 
-// CallApplyCheque - send tx to contract to call apply cheque method.
+// CallApplyCheque - send tx to contract to call apply batch method.
 func (pro *Provider) WithdrawBatch(bc *check.BatchCheck) (tx *types.Transaction, err error) {
 
 	// connect
@@ -220,7 +220,7 @@ func (pro *Provider) WithdrawBatch(bc *check.BatchCheck) (tx *types.Transaction,
 	return tx, nil
 }
 
-// query provider balance
+// query provider balance in contract
 func (pro *Provider) QueryBalance() (*big.Int, error) {
 	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
@@ -236,7 +236,7 @@ func (pro *Provider) QueryBalance() (*big.Int, error) {
 	return balance, nil
 }
 
-// serialize and store a paycheck into db
+// serialize and store a paycheck to db
 func (pro *Provider) Store(pchk *check.Paycheck) error {
 	// serialize paycheck
 	b, err := pchk.Marshal()

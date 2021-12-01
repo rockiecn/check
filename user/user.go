@@ -31,6 +31,7 @@ type IUser interface {
 	Pay(to common.Address, dataValue *big.Int) (*check.Paycheck, error)
 }
 
+// create an user object from sk
 func New(sk string) (IUser, error) {
 	addr, err := utils.SkToAddr(sk)
 	if err != nil {
@@ -46,8 +47,8 @@ func New(sk string) (IUser, error) {
 	return user, nil
 }
 
-// generate a paycheck from check
-// check is got from operator by order id
+// generate a paycheck out of a check
+// check here is acquired from operator's order manager by order id
 func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	if chk == nil {
 		return nil, errors.New("check nil")
@@ -66,7 +67,7 @@ func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	return pchk, nil
 }
 
-// put a paycheck into pool
+// put a paycheck into user's pool
 func (user *User) Put(pchk *check.Paycheck) error {
 
 	// put into pool

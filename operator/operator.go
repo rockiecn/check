@@ -40,7 +40,7 @@ type IOperator interface {
 	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
 
-// create an operator without contract.
+// create an operator out of sk
 func New(sk string) (IOperator, error) {
 	opAddr, err := utils.SkToAddr(sk)
 	if err != nil {
@@ -59,7 +59,7 @@ func New(sk string) (IOperator, error) {
 	return op, nil
 }
 
-// Store an order into db
+// Store an order into order db
 func (op *Operator) StoreOrder(odr *odrmgr.Order) error {
 	// serialize
 	b, err := odr.Marshal()
@@ -75,7 +75,7 @@ func (op *Operator) StoreOrder(odr *odrmgr.Order) error {
 	return nil
 }
 
-// restore orders from db
+// restore orders from order db
 func (op *Operator) RestoreOrder() error {
 	db, err := leveldb.OpenFile(op.orderDB, nil)
 	if err != nil {
@@ -110,7 +110,7 @@ func (op *Operator) RestoreOrder() error {
 	return nil
 }
 
-// store a check into db
+// store a check into check db
 func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 	// serialize
 	b, err := chk.Marshal()
@@ -126,7 +126,7 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 	return nil
 }
 
-// restore checks from db
+// restore checks from check db
 func (op *Operator) RestoreChk() error {
 	db, err := leveldb.OpenFile(op.checkDB, nil)
 	if err != nil {
@@ -162,7 +162,7 @@ func (op *Operator) RestoreChk() error {
 	return nil
 }
 
-// value: money to new contract
+// value: the money given to new contract
 func (op *Operator) Deploy(value *big.Int) (*types.Transaction, common.Address, error) {
 
 	// connect to node
@@ -199,7 +199,7 @@ func (op *Operator) Deploy(value *big.Int) (*types.Transaction, common.Address, 
 	return tx, addr, nil
 }
 
-// query balance of contract
+// query the balance of contract
 func (op *Operator) QueryBalance() (*big.Int, error) {
 	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
@@ -267,7 +267,7 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // generate a new check for an order
 // first get order with oid
 // then generate a check from order info
-// increase nonce by 1
+// increase next check nonce by 1
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
 	odr, err := op.OM.GetOrder(oid)
