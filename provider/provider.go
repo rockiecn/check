@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/db"
+	"github.com/rockiecn/check/internal/store"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -20,9 +20,11 @@ type Provider struct {
 	ProviderAddr common.Address
 	Host         string
 
-	Pool map[uint64]*check.Paycheck
+	Pool      map[uint64]*check.Paycheck
+	BatchPool map[uint64]*check.BatchCheck
 
-	db *leveldb.DB
+	pchkSt  store.Storer
+	batchSt store.Storer
 
 	ClosedbFunc func(*leveldb.DB) error
 }
@@ -36,7 +38,8 @@ type IProvider interface {
 }
 
 // db file name
-var proDBfile = "provider.db"
+var pchkDBfile = "pchk.db"
+var batchDBfile = "batch.db"
 
 // create a provider out of sk
 func New(sk string) (IProvider, error) {
@@ -51,21 +54,22 @@ func New(sk string) (IProvider, error) {
 		Pool:         make(map[uint64]*check.Paycheck),
 	}
 
-	// open provider db
-	pro.db, err = leveldb.OpenFile(proDBfile, nil)
+	pchkDB := store.Store{}
+	pchkDB.DB, err = leveldb.OpenFile(pchkDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
-	// declare close func
-	pro.ClosedbFunc = func(db *leveldb.DB) error {
-		err := db.Close()
-		if err != nil {
-			return err
-		}
-		return nil
+	batchDB := store.Store{}
+	batchDB.DB, err = leveldb.OpenFile(batchDBfile, nil)
+	if err != nil {
+		fmt.Println("open db error: ", err)
+		return nil, err
 	}
+
+	pro.pchkSt = &pchkDB
+	pro.batchSt = &batchDB
 
 	return pro, nil
 }
@@ -122,8 +126,25 @@ func (pro *Provider) Put(pchk *check.Paycheck) error {
 	return nil
 }
 
-// get the next payable paycheck from pool
+// put a batch paycheck into pool
+func (pro *Provider) PutBatch(bchk *check.BatchCheck) error {
+	if bchk == nil {
+		return errors.New("batch paycheck nil")
+	}
+
+	pro.BatchPool[bchk.MinNonce] = bchk
+
+	return nil
+}
+
+// get the next payable paycheck in db
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
+
+	st := pro.pchkSt.(*store.Store)
+
+	if st.DB == nil {
+		return nil, errors.New("nil check db")
+	}
 
 	var (
 		theOne   = (*check.Paycheck)(nil)
@@ -131,23 +152,119 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 		minNonce = max
 	)
 
-	for k, v := range pro.Pool {
-		// get current nonce in contract
-		ctrNonce, err := utils.GetCtNonce(v.Check.CtrAddr, pro.ProviderAddr)
+	// read data from db
+	iter := st.DB.NewIterator(nil, nil)
+	for iter.Next() {
+		k := iter.Key()
+		v := iter.Value()
+
+		// get nonce
+		n := utils.ByteToUint64(k)
+
+		// Deserialize paycheck
+		pchk := &check.Paycheck{}
+		err := pchk.DeSerialize(v)
 		if err != nil {
 			return nil, err
 		}
 
-		// nonce too old, check next
-		if k < ctrNonce {
+		// get current nonce in contract
+		ctrNonce, err := utils.GetCtNonce(pchk.CtrAddr, pro.ProviderAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		// nonce too old, skip it
+		if n < ctrNonce {
 			continue
 		}
 
-		if k < minNonce {
-			minNonce = k
-			theOne = v
+		// get and update minNonce
+		if n < minNonce {
+			minNonce = n
+			theOne = pchk
 		}
 	}
+
+	iter.Release()
+	err := iter.Error()
+	if err != nil {
+		return nil, err
+	}
+
+	// not found
+	if theOne == nil {
+		return nil, errors.New("payable paycheck not found in db")
+	}
+
+	// put paycheck into pool
+	pro.Put(theOne)
+
+	return theOne, nil
+}
+
+// get next payable batch check
+func (pro *Provider) GetNextPayableBatch() (*check.BatchCheck, error) {
+
+	st := pro.batchSt.(*store.Store)
+
+	if st.DB == nil {
+		return nil, errors.New("nil check db")
+	}
+
+	var (
+		theOne   = (*check.BatchCheck)(nil)
+		max      = ^uint64(0)
+		minNonce = max
+	)
+
+	// read data from db
+	iter := st.DB.NewIterator(nil, nil)
+	for iter.Next() {
+		k := iter.Key()
+		v := iter.Value()
+
+		// get nonce
+		n := utils.ByteToUint64(k)
+
+		// Deserialize batchcheck
+		bchk := &check.BatchCheck{}
+		err := bchk.DeSerialize(v)
+		if err != nil {
+			return nil, err
+		}
+
+		// get current nonce in contract
+		ctrNonce, err := utils.GetCtNonce(bchk.CtrAddr, pro.ProviderAddr)
+		if err != nil {
+			return nil, err
+		}
+
+		// nonce too old, skip it
+		if n < ctrNonce {
+			continue
+		}
+
+		// get and update minNonce
+		if n < minNonce {
+			minNonce = n
+			theOne = bchk
+		}
+	}
+
+	iter.Release()
+	err := iter.Error()
+	if err != nil {
+		return nil, err
+	}
+
+	// not found
+	if theOne == nil {
+		return nil, errors.New("payable batch check not found in db")
+	}
+
+	// put paycheck into pool
+	pro.PutBatch(theOne)
 
 	return theOne, nil
 }
@@ -265,7 +382,7 @@ func (pro *Provider) Store(pchk *check.Paycheck) error {
 		return err
 	}
 	// write db
-	err = db.WriteDB(pro.db, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	err = pro.pchkSt.Put(utils.Uint64ToByte(pchk.Nonce), b)
 	if err != nil {
 		return err
 	}
@@ -273,6 +390,7 @@ func (pro *Provider) Store(pchk *check.Paycheck) error {
 	return nil
 }
 
+/*
 // restore all paychecks from db
 func (pro *Provider) Restore() error {
 
@@ -299,6 +417,24 @@ func (pro *Provider) Restore() error {
 
 	iter.Release()
 	err := iter.Error()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+*/
+
+// store a batch check into db
+// key = minNonce
+func (pro *Provider) StoreBatch(bc *check.BatchCheck) error {
+	// serialize
+	b, err := bc.Serialize()
+	if err != nil {
+		return err
+	}
+	// write db
+	err = pro.batchSt.Put(utils.Uint64ToByte(bc.MinNonce), b)
 	if err != nil {
 		return err
 	}

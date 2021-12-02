@@ -265,3 +265,23 @@ func FromKey(key []byte) (common.Address, uint64) {
 	n := ByteToUint64(key[20:])
 	return proAddr, n
 }
+
+// generate the batch check key
+func ToBatchKey(a common.Address, min, max uint64) (key []byte) {
+	key = append(key, a.Bytes()...)
+	key = append(key, Uint64ToByte(min)...)
+	key = append(key, Uint64ToByte(max)...)
+
+	return
+}
+
+// get address ,nonce from a batch key
+func FromBatchKey(key []byte) (to common.Address, min, max uint64) {
+	// provider address, 20 bytes
+	to = common.BytesToAddress(key[:20])
+	// nonce, 8 bytes
+	min = ByteToUint64(key[20:28])
+	max = ByteToUint64(key[28:36])
+
+	return
+}

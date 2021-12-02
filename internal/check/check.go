@@ -247,7 +247,7 @@ func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
 }
 
 // serialize an order with cbor
-func (pchk *Paycheck) Serialze() ([]byte, error) {
+func (pchk *Paycheck) Serialize() ([]byte, error) {
 
 	if pchk == nil {
 		return nil, errors.New("nil pchk")
@@ -351,4 +351,34 @@ func (bc *BatchCheck) Hash() []byte {
 	)
 
 	return hash
+}
+
+// serialize an batch check with cbor
+func (bc *BatchCheck) Serialize() ([]byte, error) {
+
+	if bc == nil {
+		return nil, errors.New("nil pchk")
+	}
+
+	b, err := cbor.Marshal(*bc)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return b, nil
+}
+
+// decode a buf into batch check
+func (bc *BatchCheck) DeSerialize(buf []byte) error {
+	if bc == nil {
+		return errors.New("nil bc")
+	}
+	if buf == nil {
+		return errors.New("nil buf")
+	}
+
+	err := cbor.Unmarshal(buf, bc)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return nil
 }

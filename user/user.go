@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/db"
+	"github.com/rockiecn/check/internal/store"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -23,7 +23,7 @@ type User struct {
 	// address to paychecks
 	Pool map[common.Address]Paychecks
 
-	db *leveldb.DB
+	db store.Storer
 
 	ClosedbFunc func(*leveldb.DB) error
 }
@@ -48,21 +48,15 @@ func New(sk string) (IUser, error) {
 		Pool:     make(map[common.Address]Paychecks),
 	}
 
-	// open user db
-	user.db, err = leveldb.OpenFile(userDBfile, nil)
+	// open db
+	st := &store.Store{}
+	st.DB, err = leveldb.OpenFile(userDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
-	// declare close func
-	user.ClosedbFunc = func(db *leveldb.DB) error {
-		err := db.Close()
-		if err != nil {
-			return err
-		}
-		return nil
-	}
+	user.db = st
 
 	return user, nil
 }
@@ -111,8 +105,9 @@ func (user *User) Store(pchk *check.Paycheck) error {
 	if err != nil {
 		return err
 	}
+
 	// write db
-	err = db.WriteDB(user.db, utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	err = user.db.Put(utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
 	if err != nil {
 		return err
 	}
@@ -126,8 +121,9 @@ func (user *User) Restore() error {
 		return errors.New("nil db")
 	}
 
+	db := user.db.(*store.Store)
 	// read data from db
-	iter := user.db.NewIterator(nil, nil)
+	iter := db.DB.NewIterator(nil, nil)
 	for iter.Next() {
 		//k := iter.Key()
 		v := iter.Value()

@@ -12,7 +12,7 @@ import (
 	"github.com/fxamacker/cbor/v2"
 	"github.com/rockiecn/check/internal/cash"
 	"github.com/rockiecn/check/internal/check"
-	"github.com/rockiecn/check/internal/db"
+	"github.com/rockiecn/check/internal/store"
 	"github.com/rockiecn/check/internal/utils"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -25,11 +25,8 @@ type Operator struct {
 	Nonces map[common.Address]uint64 // nonce for next check
 
 	// db
-	orderDB *leveldb.DB
-	checkDB *leveldb.DB
-
-	// func for closing db
-	ClosedbFunc func(*leveldb.DB) error
+	odrStorer store.Storer
+	chkStorer store.Storer
 
 	OM *Ordermgr
 }
@@ -64,27 +61,22 @@ func New(sk string) (IOperator, error) {
 		OM:     NewMgr(),
 	}
 
-	// open order db
-	op.orderDB, err = leveldb.OpenFile(odrDBfile, nil)
+	// open db
+	var OdrDB = store.Store{}
+	var ChkDB = store.Store{}
+	OdrDB.DB, err = leveldb.OpenFile(odrDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
-	// open check db
-	op.checkDB, err = leveldb.OpenFile(chkDBfile, nil)
+	ChkDB.DB, err = leveldb.OpenFile(odrDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
-	// declare close func
-	op.ClosedbFunc = func(db *leveldb.DB) error {
-		err := db.Close()
-		if err != nil {
-			return err
-		}
-		return nil
-	}
+	op.chkStorer = &ChkDB
+	op.odrStorer = &OdrDB
 
 	return op, nil
 }
@@ -97,7 +89,7 @@ func (op *Operator) StoreOrder(odr *Order) error {
 		return err
 	}
 	// write db
-	err = db.WriteDB(op.orderDB, utils.Uint64ToByte(odr.ID), b)
+	err = op.odrStorer.Put(utils.Uint64ToByte(odr.ID), b)
 	if err != nil {
 		return err
 	}
@@ -107,12 +99,13 @@ func (op *Operator) StoreOrder(odr *Order) error {
 
 // restore an order from order db
 func (op *Operator) RestoreOrder(oid uint64) error {
-	if op.checkDB == nil {
+	if op.chkStorer == nil {
 		return errors.New("nil check db")
 	}
 
 	// read data from db
-	iter := op.orderDB.NewIterator(nil, nil)
+	db := op.odrStorer.(*store.Store)
+	iter := db.DB.NewIterator(nil, nil)
 	for iter.Next() {
 		k := iter.Key()
 		v := iter.Value()
@@ -151,7 +144,7 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 		return err
 	}
 	// write db
-	err = db.WriteDB(op.checkDB, utils.Uint64ToByte(oid), b)
+	err = op.chkStorer.Put(utils.Uint64ToByte(oid), b)
 	if err != nil {
 		return err
 	}
@@ -161,12 +154,13 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 
 // restore a check from check db with oid
 func (op *Operator) RestoreChk(oid uint64) error {
-	if op.checkDB == nil {
+	if op.chkStorer == nil {
 		return errors.New("nil check db")
 	}
 
 	// read data from db
-	iter := op.checkDB.NewIterator(nil, nil)
+	db := op.chkStorer.(*store.Store)
+	iter := db.DB.NewIterator(nil, nil)
 	for iter.Next() {
 		k := iter.Key()
 		v := iter.Value()
@@ -298,12 +292,15 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 	return tx, nil
 }
 
-// generate a new check for an order
-// first get order with oid
-// then generate a check from order info
-// increase next check nonce by 1
+// CreateCheck - generate a new check for an order
+// 1 get order from pool with oid
+// 2 generate a check from order
+// 3 put the check into pool
+// 4 store the check into db
+// 5 increase next check nonce by 1
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
+	// get order by id
 	odr, err := op.GetOrder(oid)
 	if err != nil {
 		return nil, err
@@ -311,6 +308,7 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
 	nonce := op.Nonces[odr.To]
 
+	// create check
 	chk := &check.Check{
 		CheckInfo: check.CheckInfo{
 			Value:     odr.Value,
@@ -323,8 +321,20 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 		},
 	}
 
-	// signed by operator
+	// sign by operator
 	err = chk.Sign(op.OpSK)
+	if err != nil {
+		return nil, err
+	}
+
+	// put check into pool
+	err = op.PutCheck(oid, chk)
+	if err != nil {
+		return nil, err
+	}
+
+	// store check into db
+	err = op.StoreChk(oid, chk)
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +345,7 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 	return chk, nil
 }
 
-// aggregate a batch of paychecks into a single BatchCheck
+// Aggregate - aggregate a batch of paychecks into a single BatchCheck
 func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) {
 	if len(pcs) == 0 {
 		return nil, errors.New("no paycheck in data")
@@ -387,13 +397,14 @@ func (op *Operator) Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error) 
 
 	}
 
-	batch := &check.BatchCheck{}
-	batch.OpAddr = op.OpAddr
-	batch.ToAddr = toAddr
-	batch.CtrAddr = op.CtrAddr
-	batch.BatchValue = total
-	batch.MinNonce = minNonce
-	batch.MaxNonce = maxNonce
+	batch := &check.BatchCheck{
+		OpAddr:     op.OpAddr,
+		ToAddr:     toAddr,
+		CtrAddr:    op.CtrAddr,
+		BatchValue: total,
+		MinNonce:   minNonce,
+		MaxNonce:   maxNonce,
+	}
 	err := batch.Sign(op.OpSK)
 	if err != nil {
 		return nil, err
@@ -427,10 +438,10 @@ func (op *Operator) ShowOdrPool() {
 
 // get an order by id
 func (op *Operator) GetOrder(oid uint64) (*Order, error) {
-	// if not in pool, read from db
+	// if order not in pool, read it from db
 	if op.OM.OdrPool[oid] == nil {
 		k := utils.Uint64ToByte(oid)
-		b, err := db.ReadDB(op.orderDB, k)
+		b, err := op.odrStorer.Get(k)
 		if err != nil {
 			return nil, err
 		}
@@ -466,7 +477,7 @@ func (op *Operator) PutOrder(odr *Order) error {
 	if err != nil {
 		return err
 	}
-	err = db.WriteDB(op.orderDB, k, b)
+	err = op.odrStorer.Put(k, b)
 	if err != nil {
 		return err
 	}
@@ -481,10 +492,10 @@ func (op *Operator) DelOrder(oid uint64) {
 
 // get a check from pool by oid
 func (op *Operator) GetCheck(oid uint64) (*check.Check, error) {
-	// if not in pool, read from db
+	// if check not in pool, read it from db
 	if op.OM.ChkPool[oid] == nil {
 		k := utils.Uint64ToByte(oid)
-		b, err := db.ReadDB(op.checkDB, k)
+		b, err := op.chkStorer.Get(k)
 		if err != nil {
 			return nil, err
 		}
@@ -520,7 +531,7 @@ func (op *Operator) PutCheck(oid uint64, chk *check.Check) error {
 	if err != nil {
 		return err
 	}
-	err = db.WriteDB(op.orderDB, k, b)
+	err = op.chkStorer.Put(k, b)
 	if err != nil {
 		return err
 	}

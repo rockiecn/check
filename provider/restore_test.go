@@ -76,6 +76,7 @@ func TestStore(t *testing.T) {
 	Pro.Store(pchk2)
 }
 
+/*
 // restore paychecks from db
 func TestRestore(t *testing.T) {
 	proSk, err := utils.GenerateSK()
@@ -95,3 +96,4 @@ func TestRestore(t *testing.T) {
 	}
 	Pro.ShowPool()
 }
+*/
