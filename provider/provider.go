@@ -83,7 +83,7 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 		return false, errors.New("value less than payvalue")
 	}
 
-	// check nonce shuould larger than contract nonce
+	// check nonce should larger than contract nonce
 	contractNonce, err := utils.GetCtNonce(pchk.Check.CtrAddr, pro.ProviderAddr)
 	if err != nil {
 		return false, err
@@ -98,22 +98,24 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 	}
 
 	// get paycheck in pool
-	old := pro.Pool[pchk.Check.Nonce]
+	old := pro.Pool[pchk.Nonce]
 	// verify payvalue
+	// nonce not exists in pool
 	if old == nil {
 		if pchk.PayValue.Cmp(dataValue) == 0 {
 			return true, nil
 		} else {
-			return false, errors.New("payAmount not equal dataValue 1")
-		}
-	} else {
-		payAmount := new(big.Int).Sub(pchk.PayValue, old.PayValue)
-		if payAmount.Cmp(dataValue) == 0 {
-			return true, nil
-		} else {
-			return false, errors.New("payAmount not equal dataValue 2")
+			return false, errors.New("payAmount not equal dataValue, condition 1")
 		}
 	}
+	// nonce exists in pool
+	payAmount := new(big.Int).Sub(pchk.PayValue, old.PayValue)
+	if payAmount.Cmp(dataValue) == 0 {
+		return true, nil
+	} else {
+		return false, errors.New("payAmount not equal dataValue, condition 2")
+	}
+
 }
 
 // put a paycheck into pool
@@ -125,12 +127,6 @@ func (pro *Provider) Put(pc *check.Paycheck) error {
 	// put into pool
 	pro.Pool[pc.Check.Nonce] = pc
 
-	// write db
-	err := pro.Store(pc)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -140,6 +136,7 @@ func (pro *Provider) PutBatch(bchk *check.BatchCheck) error {
 		return errors.New("batch paycheck nil")
 	}
 
+	// put into pool
 	pro.BatchPool[bchk.MinNonce] = bchk
 
 	return nil

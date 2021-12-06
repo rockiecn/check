@@ -271,9 +271,10 @@ func (op *Operator) Deposit(value *big.Int) (*types.Transaction, error) {
 // CreateCheck - generate a new check for an order
 // 1 get order from pool with oid
 // 2 generate a check from order
-// 3 put the check into pool
-// 4 store the check into db
-// 5 increase next check nonce by 1
+// 3 update nonce by 1
+// Things should be followed after create a check:
+// 1 put the check into pool
+// 2 store the check into db
 func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 
 	// get order by id
@@ -303,19 +304,7 @@ func (op *Operator) CreateCheck(oid uint64) (*check.Check, error) {
 		return nil, err
 	}
 
-	// put check into pool
-	err = op.PutCheck(oid, chk)
-	if err != nil {
-		return nil, err
-	}
-
-	// store check into db
-	err = op.StoreChk(oid, chk)
-	if err != nil {
-		return nil, err
-	}
-
-	// increase nonce by 1
+	// update nonces
 	op.Nonces[odr.To] = nonce + 1
 
 	return chk, nil
@@ -450,12 +439,6 @@ func (op *Operator) PutOrder(odr *Order) error {
 	// put order into pool
 	op.OM.OdrPool[odr.ID] = odr
 
-	// write db
-	err := op.StoreOrder(odr)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -508,12 +491,6 @@ func (op *Operator) PutCheck(oid uint64, chk *check.Check) error {
 
 	// put check into pool
 	op.OM.ChkPool[oid] = chk
-
-	// write db
-	err := op.StoreChk(oid, chk)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
