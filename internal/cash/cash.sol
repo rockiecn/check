@@ -63,6 +63,7 @@ contract Cash  {
         //require(paycheck.check.CtrAddr == address(this), "contract address error");
         require(paycheck.check.toAddr == msg.sender, "caller shuould be check.toAddr");
         require(paycheck.check.opAddr == owner, "operator should be owner of this contract");
+
         
 
         // verify check's signer

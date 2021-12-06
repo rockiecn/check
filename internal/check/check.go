@@ -227,26 +227,7 @@ func (pchk *Paycheck) Hash() []byte {
 	return hash
 }
 
-// equal
-func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
-
-	_, err := pchk.Check.Equal(p2.Check)
-	if err != nil {
-		return false, err
-	}
-
-	if pchk.PayValue.String() != p2.PayValue.String() {
-		return false, errors.New("pay value not equal")
-	}
-
-	if !bytes.Equal(pchk.PaycheckSig, p2.PaycheckSig) {
-		return false, errors.New("paycheck sig not equal")
-	}
-
-	return true, nil
-}
-
-// serialize an order with cbor
+// serialize an paycheck with cbor
 func (pchk *Paycheck) Serialize() ([]byte, error) {
 
 	if pchk == nil {
@@ -260,7 +241,7 @@ func (pchk *Paycheck) Serialize() ([]byte, error) {
 	return b, nil
 }
 
-// decode a buf into order
+// decode a buf into paycheck
 func (pchk *Paycheck) DeSerialize(buf []byte) error {
 	if pchk == nil {
 		return errors.New("nil pchk")
@@ -274,6 +255,25 @@ func (pchk *Paycheck) DeSerialize(buf []byte) error {
 		fmt.Println("error:", err)
 	}
 	return nil
+}
+
+// equal
+func (pchk *Paycheck) Equal(p2 *Paycheck) (bool, error) {
+
+	ok, err := pchk.Check.Equal(p2.Check)
+	if !ok {
+		return false, fmt.Errorf("paycheck not equal: %v", err)
+	}
+
+	if pchk.PayValue.String() != p2.PayValue.String() {
+		return false, errors.New("pay value not equal")
+	}
+
+	if !bytes.Equal(pchk.PaycheckSig, p2.PaycheckSig) {
+		return false, errors.New("paycheck sig not equal")
+	}
+
+	return true, nil
 }
 
 type BatchCheck struct {

@@ -76,6 +76,7 @@ func TestStore(t *testing.T) {
 	Usr.Store(pchk2)
 }
 
+/*
 // restore paychecks from db
 func TestRestore(t *testing.T) {
 	usrSk, err := utils.GenerateSK()
@@ -95,3 +96,4 @@ func TestRestore(t *testing.T) {
 	}
 	Usr.ShowPool()
 }
+*/

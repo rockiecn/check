@@ -23,9 +23,8 @@ type User struct {
 	// address to paychecks
 	Pool map[common.Address]Paychecks
 
-	db store.Storer
-
-	ClosedbFunc func(*leveldb.DB) error
+	// key(to+nonce) -> paycheck
+	PcStorer store.Storer
 }
 
 type IUser interface {
@@ -56,29 +55,36 @@ func New(sk string) (IUser, error) {
 		return nil, err
 	}
 
-	user.db = st
+	user.PcStorer = st
 
 	return user, nil
 }
 
 // generate a paycheck out of a check
 // check here is acquired from operator's order manager by order id
+// then store paycheck into db
 func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	if chk == nil {
 		return nil, errors.New("check nil")
 	}
 
-	pchk := &check.Paycheck{
+	pc := &check.Paycheck{
 		Check:    chk,
 		PayValue: big.NewInt(0),
 	}
 
-	err := pchk.Sign(user.UserSK)
+	err := pc.Sign(user.UserSK)
 	if err != nil {
 		return nil, errors.New("paycheck sign error")
 	}
 
-	return pchk, nil
+	// store pc into db
+	err = user.Store(pc)
+	if err != nil {
+		return nil, err
+	}
+
+	return pc, nil
 }
 
 // put a paycheck into user's pool
@@ -107,7 +113,7 @@ func (user *User) Store(pchk *check.Paycheck) error {
 	}
 
 	// write db
-	err = user.db.Put(utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
+	err = user.PcStorer.Put(utils.ToKey(pchk.Check.ToAddr, pchk.Check.Nonce), b)
 	if err != nil {
 		return err
 	}
@@ -115,33 +121,23 @@ func (user *User) Store(pchk *check.Paycheck) error {
 	return nil
 }
 
-// restore all paychecks from db
-func (user *User) Restore() error {
-	if user.db == nil {
-		return errors.New("nil db")
+// restore a paycheck from db
+// key = to + nonce
+func (user *User) Restore(to common.Address, n uint64) error {
+
+	k := utils.ToKey(to, n)
+	v, err := user.PcStorer.Get(k)
+	if err != nil {
+		return err
 	}
-
-	db := user.db.(*store.Store)
-	// read data from db
-	iter := db.DB.NewIterator(nil, nil)
-	for iter.Next() {
-		//k := iter.Key()
-		v := iter.Value()
-		pchk := &check.Paycheck{}
-		err := pchk.DeSerialize(v)
-		if err != nil {
-			return err
-		}
-
-		// put pchk into memory
-		err = user.Put(pchk)
-		if err != nil {
-			return err
-		}
+	// deserialize paycheck
+	pc := &check.Paycheck{}
+	err = pc.DeSerialize(v)
+	if err != nil {
+		return err
 	}
-
-	iter.Release()
-	err := iter.Error()
+	// put into pool
+	err = user.Put(pc)
 	if err != nil {
 		return err
 	}
@@ -210,6 +206,7 @@ func (user *User) Pay(proAddr common.Address, dataValue *big.Int) (*check.Payche
 	}
 }
 
+/*
 // show pool
 func (user *User) ShowPool() {
 	for k, v := range user.Pool {
@@ -221,3 +218,4 @@ func (user *User) ShowPool() {
 		}
 	}
 }
+*/

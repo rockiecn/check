@@ -23,10 +23,10 @@ type Provider struct {
 	Pool      map[uint64]*check.Paycheck
 	BatchPool map[uint64]*check.BatchCheck
 
-	pchkSt  store.Storer
-	batchSt store.Storer
-
-	ClosedbFunc func(*leveldb.DB) error
+	// nonce -> paycheck
+	PcStorer store.Storer // storer for paycheck
+	// nonce -> batch
+	BtStorer store.Storer // storer for batch
 }
 
 type IProvider interface {
@@ -54,22 +54,23 @@ func New(sk string) (IProvider, error) {
 		Pool:         make(map[uint64]*check.Paycheck),
 	}
 
-	pchkDB := store.Store{}
+	pchkDB := &store.Store{}
 	pchkDB.DB, err = leveldb.OpenFile(pchkDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
-	batchDB := store.Store{}
+	batchDB := &store.Store{}
 	batchDB.DB, err = leveldb.OpenFile(batchDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
-	pro.pchkSt = &pchkDB
-	pro.batchSt = &batchDB
+	// init db
+	pro.PcStorer = pchkDB
+	pro.BtStorer = batchDB
 
 	return pro, nil
 }
@@ -116,12 +117,19 @@ func (pro *Provider) Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, err
 }
 
 // put a paycheck into pool
-func (pro *Provider) Put(pchk *check.Paycheck) error {
-	if pchk == nil {
+func (pro *Provider) Put(pc *check.Paycheck) error {
+	if pc == nil {
 		return errors.New("paycheck nil")
 	}
 
-	pro.Pool[pchk.Check.Nonce] = pchk
+	// put into pool
+	pro.Pool[pc.Check.Nonce] = pc
+
+	// write db
+	err := pro.Store(pc)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -140,9 +148,10 @@ func (pro *Provider) PutBatch(bchk *check.BatchCheck) error {
 // get the next payable paycheck in db
 func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 
-	st := pro.pchkSt.(*store.Store)
+	// get db
+	db := pro.PcStorer.(*store.Store).DB
 
-	if st.DB == nil {
+	if db == nil {
 		return nil, errors.New("nil check db")
 	}
 
@@ -153,7 +162,7 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 	)
 
 	// read data from db
-	iter := st.DB.NewIterator(nil, nil)
+	iter := db.NewIterator(nil, nil)
 	for iter.Next() {
 		k := iter.Key()
 		v := iter.Value()
@@ -206,7 +215,7 @@ func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
 // get next payable batch check
 func (pro *Provider) GetNextPayableBatch() (*check.BatchCheck, error) {
 
-	st := pro.batchSt.(*store.Store)
+	st := pro.BtStorer.(*store.Store)
 
 	if st.DB == nil {
 		return nil, errors.New("nil check db")
@@ -382,7 +391,7 @@ func (pro *Provider) Store(pchk *check.Paycheck) error {
 		return err
 	}
 	// write db
-	err = pro.pchkSt.Put(utils.Uint64ToByte(pchk.Nonce), b)
+	err = pro.PcStorer.Put(utils.Uint64ToByte(pchk.Nonce), b)
 	if err != nil {
 		return err
 	}
@@ -390,40 +399,29 @@ func (pro *Provider) Store(pchk *check.Paycheck) error {
 	return nil
 }
 
-/*
-// restore all paychecks from db
-func (pro *Provider) Restore() error {
+// restore a paycheck from db
+// key = to + nonce
+func (pro *Provider) Restore(to common.Address, n uint64) error {
 
-	if pro.db == nil {
-		return errors.New("nil db")
+	k := utils.ToKey(to, n)
+	v, err := pro.PcStorer.Get(k)
+	if err != nil {
+		return err
 	}
-	// read data from db
-	iter := pro.db.NewIterator(nil, nil)
-	for iter.Next() {
-		//k := iter.Key()
-		v := iter.Value()
-		pchk := &check.Paycheck{}
-		err := pchk.DeSerialize(v)
-		if err != nil {
-			return err
-		}
-
-		// put pchk into memory
-		err = pro.Put(pchk)
-		if err != nil {
-			return err
-		}
+	// deserialize paycheck
+	pc := &check.Paycheck{}
+	err = pc.DeSerialize(v)
+	if err != nil {
+		return err
 	}
-
-	iter.Release()
-	err := iter.Error()
+	// put into pool
+	err = pro.Put(pc)
 	if err != nil {
 		return err
 	}
 
 	return nil
 }
-*/
 
 // store a batch check into db
 // key = minNonce
@@ -434,7 +432,7 @@ func (pro *Provider) StoreBatch(bc *check.BatchCheck) error {
 		return err
 	}
 	// write db
-	err = pro.batchSt.Put(utils.Uint64ToByte(bc.MinNonce), b)
+	err = pro.BtStorer.Put(utils.Uint64ToByte(bc.MinNonce), b)
 	if err != nil {
 		return err
 	}
@@ -442,6 +440,7 @@ func (pro *Provider) StoreBatch(bc *check.BatchCheck) error {
 	return nil
 }
 
+/*
 // show pool
 func (pro *Provider) ShowPool() {
 	for k, v := range pro.Pool {
@@ -450,3 +449,4 @@ func (pro *Provider) ShowPool() {
 		fmt.Println(*v)
 	}
 }
+*/

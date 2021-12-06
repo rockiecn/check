@@ -22,11 +22,13 @@ type Operator struct {
 	OpAddr  common.Address
 	CtrAddr common.Address
 
-	Nonces map[common.Address]uint64 // nonce for next check
+	// nonce for next check
+	Nonces map[common.Address]uint64
 
-	// db
-	odrStorer store.Storer
-	chkStorer store.Storer
+	// oid -> order
+	OdrStorer store.Storer
+	// oid -> check
+	ChkStorer store.Storer
 
 	OM *Ordermgr
 }
@@ -61,22 +63,23 @@ func New(sk string) (IOperator, error) {
 		OM:     NewMgr(),
 	}
 
-	// open db
-	var OdrDB = store.Store{}
-	var ChkDB = store.Store{}
-	OdrDB.DB, err = leveldb.OpenFile(odrDBfile, nil)
+	// open order db
+	var OdrStore = &store.Store{}
+	OdrStore.DB, err = leveldb.OpenFile(odrDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
-	ChkDB.DB, err = leveldb.OpenFile(odrDBfile, nil)
+	// open check db
+	var ChkStore = &store.Store{}
+	ChkStore.DB, err = leveldb.OpenFile(chkDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
-	op.chkStorer = &ChkDB
-	op.odrStorer = &OdrDB
+	op.ChkStorer = OdrStore
+	op.OdrStorer = ChkStore
 
 	return op, nil
 }
@@ -88,8 +91,9 @@ func (op *Operator) StoreOrder(odr *Order) error {
 	if err != nil {
 		return err
 	}
-	// write db
-	err = op.odrStorer.Put(utils.Uint64ToByte(odr.ID), b)
+
+	// write into db
+	err = op.OdrStorer.Put(utils.Uint64ToByte(odr.ID), b)
 	if err != nil {
 		return err
 	}
@@ -99,41 +103,26 @@ func (op *Operator) StoreOrder(odr *Order) error {
 
 // restore an order from order db
 func (op *Operator) RestoreOrder(oid uint64) error {
-	if op.chkStorer == nil {
-		return errors.New("nil check db")
+
+	// get order from db with oid
+	k := utils.Uint64ToByte(oid)
+	v, err := op.OdrStorer.Get(k)
+	if err != nil {
+		return err
 	}
-
-	// read data from db
-	db := op.odrStorer.(*store.Store)
-	iter := db.DB.NewIterator(nil, nil)
-	for iter.Next() {
-		k := iter.Key()
-		v := iter.Value()
-
-		// oid
-		o := utils.ByteToUint64(k)
-		// found and put into memory
-		if o == oid {
-			odr := &Order{}
-			err := odr.DeSerialize(v)
-			if err != nil {
-				return err
-			}
-			err = op.PutOrder(odr)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+	// deserialize order
+	odr := &Order{}
+	err = odr.DeSerialize(v)
+	if err != nil {
+		return err
 	}
-
-	iter.Release()
-	err := iter.Error()
+	// put into pool
+	err = op.PutOrder(odr)
 	if err != nil {
 		return err
 	}
 
-	return errors.New("order not found in db")
+	return nil
 }
 
 // store a check into check db
@@ -143,8 +132,9 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 	if err != nil {
 		return err
 	}
+
 	// write db
-	err = op.chkStorer.Put(utils.Uint64ToByte(oid), b)
+	err = op.ChkStorer.Put(utils.Uint64ToByte(oid), b)
 	if err != nil {
 		return err
 	}
@@ -154,40 +144,26 @@ func (op *Operator) StoreChk(oid uint64, chk *check.Check) error {
 
 // restore a check from check db with oid
 func (op *Operator) RestoreChk(oid uint64) error {
-	if op.chkStorer == nil {
-		return errors.New("nil check db")
+
+	// get check from db with oid
+	k := utils.Uint64ToByte(oid)
+	v, err := op.ChkStorer.Get(k)
+	if err != nil {
+		return err
 	}
-
-	// read data from db
-	db := op.chkStorer.(*store.Store)
-	iter := db.DB.NewIterator(nil, nil)
-	for iter.Next() {
-		k := iter.Key()
-		v := iter.Value()
-
-		o := utils.ByteToUint64(k)
-		// found and put into memory
-		if o == oid {
-			chk := &check.Check{}
-			err := chk.DeSerialize(v)
-			if err != nil {
-				return err
-			}
-			err = op.PutCheck(oid, chk)
-			if err != nil {
-				return err
-			}
-			return nil
-		}
+	// deserialize check
+	chk := &check.Check{}
+	err = chk.DeSerialize(v)
+	if err != nil {
+		return err
 	}
-
-	iter.Release()
-	err := iter.Error()
+	// put into pool
+	err = op.PutCheck(oid, chk)
 	if err != nil {
 		return err
 	}
 
-	return errors.New("check not found in db")
+	return nil
 }
 
 // value: the money given to new contract
@@ -418,6 +394,7 @@ func (op *Operator) SetCtrAddr(addr common.Address) {
 	op.CtrAddr = addr
 }
 
+/*
 // show all checks in pool
 func (op *Operator) ShowChkPool() {
 	for k, v := range op.OM.ChkPool {
@@ -435,13 +412,14 @@ func (op *Operator) ShowOdrPool() {
 		fmt.Println(v)
 	}
 }
+*/
 
 // get an order by id
 func (op *Operator) GetOrder(oid uint64) (*Order, error) {
 	// if order not in pool, read it from db
 	if op.OM.OdrPool[oid] == nil {
 		k := utils.Uint64ToByte(oid)
-		b, err := op.odrStorer.Get(k)
+		b, err := op.OdrStorer.Get(k)
 		if err != nil {
 			return nil, err
 		}
@@ -459,6 +437,7 @@ func (op *Operator) GetOrder(oid uint64) (*Order, error) {
 		return odr, nil
 	}
 
+	// get from pool
 	return op.OM.OdrPool[oid], nil
 }
 
@@ -472,12 +451,7 @@ func (op *Operator) PutOrder(odr *Order) error {
 	op.OM.OdrPool[odr.ID] = odr
 
 	// write db
-	k := utils.Uint64ToByte(odr.ID)
-	b, err := odr.Serialize()
-	if err != nil {
-		return err
-	}
-	err = op.odrStorer.Put(k, b)
+	err := op.StoreOrder(odr)
 	if err != nil {
 		return err
 	}
@@ -485,9 +459,18 @@ func (op *Operator) PutOrder(odr *Order) error {
 	return nil
 }
 
-// delete an order from pool by ID
-func (op *Operator) DelOrder(oid uint64) {
+// delete an order by ID
+func (op *Operator) DelOrder(oid uint64) error {
+	// delete from pool
 	delete(op.OM.OdrPool, oid)
+
+	// delete from db
+	err := op.OdrStorer.Delete(utils.Uint64ToByte(oid))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // get a check from pool by oid
@@ -495,7 +478,7 @@ func (op *Operator) GetCheck(oid uint64) (*check.Check, error) {
 	// if check not in pool, read it from db
 	if op.OM.ChkPool[oid] == nil {
 		k := utils.Uint64ToByte(oid)
-		b, err := op.chkStorer.Get(k)
+		b, err := op.ChkStorer.Get(k)
 		if err != nil {
 			return nil, err
 		}
@@ -513,6 +496,7 @@ func (op *Operator) GetCheck(oid uint64) (*check.Check, error) {
 		return chk, nil
 	}
 
+	// get from pool
 	return op.OM.ChkPool[oid], nil
 }
 
@@ -526,12 +510,7 @@ func (op *Operator) PutCheck(oid uint64, chk *check.Check) error {
 	op.OM.ChkPool[oid] = chk
 
 	// write db
-	k := utils.Uint64ToByte(oid)
-	b, err := chk.Serialize()
-	if err != nil {
-		return err
-	}
-	err = op.chkStorer.Put(k, b)
+	err := op.StoreChk(oid, chk)
 	if err != nil {
 		return err
 	}
@@ -539,9 +518,18 @@ func (op *Operator) PutCheck(oid uint64, chk *check.Check) error {
 	return nil
 }
 
-// delete a check from pool by ID
-func (op *Operator) DelCheck(oid uint64) {
+// delete a check by ID
+func (op *Operator) DelCheck(oid uint64) error {
+	// delete from pool
 	delete(op.OM.ChkPool, oid)
+
+	// delete from db
+	err := op.ChkStorer.Delete(utils.Uint64ToByte(oid))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // get order state
