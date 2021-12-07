@@ -36,20 +36,26 @@ func TestSingleProMultiCheck(t *testing.T) {
 
 	// init roles
 	fmt.Println("-> Init Operator")
-	op, err := common.InitOperator()
+	op, err := common.InitOperator("./op/order.db", "./op/check.db")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("-> Init Provider")
-	pro, err := common.InitPro()
+	pro, err := common.InitPro("./pro/pc.db", "./pro/bt.db")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("-> Init User")
-	usr, err := common.InitUser()
+	usr, err := common.InitUser("./usr/pc.db")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	op.ChkStorer.Clear()
+	op.OdrStorer.Clear()
+	usr.PcStorer.Clear()
+	pro.BtStorer.Clear()
+	pro.PcStorer.Clear()
 
 	// create 3 orders
 	fmt.Println("-> Init 3 orders")

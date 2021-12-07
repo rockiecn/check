@@ -21,13 +21,13 @@ var (
 	Token    = common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
 )
 
-func InitOperator() (*operator.Operator, error) {
+func InitOperator(odrDB string, chkDB string) (*operator.Operator, error) {
 	// generate operator
 	opSk, err := utils.GenerateSK()
 	if err != nil {
 		return nil, err
 	}
-	op, err := operator.New(opSk)
+	op, err := operator.New(opSk, odrDB, chkDB)
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +61,13 @@ func InitOperator() (*operator.Operator, error) {
 	return Op, nil
 }
 
-func InitUser() (*user.User, error) {
+func InitUser(pcDB string) (*user.User, error) {
 	// generate user
 	usrSk, err := utils.GenerateSK()
 	if err != nil {
 		return nil, err
 	}
-	usr, err := user.New(usrSk)
+	usr, err := user.New(usrSk, pcDB)
 	if err != nil {
 		return nil, err
 	}
@@ -76,13 +76,13 @@ func InitUser() (*user.User, error) {
 	return Usr, nil
 }
 
-func InitPro() (*provider.Provider, error) {
+func InitPro(pcDB string, btDB string) (*provider.Provider, error) {
 	// provider0
 	proSk, err := utils.GenerateSK()
 	if err != nil {
 		return nil, err
 	}
-	pro, err := provider.New(proSk)
+	pro, err := provider.New(proSk, pcDB, btDB)
 	if err != nil {
 		return nil, err
 	}
@@ -104,14 +104,14 @@ func InitPro() (*provider.Provider, error) {
 }
 
 func InitOrder(
-	id uint64,
+	oid uint64,
 	usr *user.User,
 	op *operator.Operator,
 	pro *provider.Provider,
 	v string,
 ) error {
 	odr := &operator.Order{
-		ID:    id,
+		ID:    oid,
 		Token: Token,
 		Value: utils.String2BigInt(v), // order value: 0.3 eth
 		From:  usr.UserAddr,
@@ -131,7 +131,15 @@ func InitOrder(
 		return err
 	}
 	// operator create a check from order
-	opChk, err := op.CreateCheck(id)
+	opChk, err := op.CreateCheck(oid)
+	if err != nil {
+		return err
+	}
+	err = op.PutCheck(oid, opChk)
+	if err != nil {
+		return err
+	}
+	err = op.StoreChk(oid, opChk)
 	if err != nil {
 		return err
 	}
@@ -146,6 +154,11 @@ func InitOrder(
 	}
 	// user put paycheck into pool
 	err = usr.Put(pchk)
+	if err != nil {
+		return err
+	}
+	// store pc into db
+	err = usr.Store(pchk)
 	if err != nil {
 		return err
 	}
@@ -203,9 +216,9 @@ func Withdraw(
 	pro *provider.Provider,
 ) (uint64, error) {
 	// nonce 0 expected
-	got, err := pro.GetNextPayable()
+	got, err := pro.PcStorer.GetNextPayable()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("call pro.GetNextPayable failed:%v", err)
 	}
 	if got == nil {
 		return 0, errors.New("nil paycheck got")
@@ -214,19 +227,19 @@ func Withdraw(
 	// query provider balance before withdraw
 	b1, err := pro.QueryBalance()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("call pro.QueryBalance failed:%v", err)
 	}
 
 	ctNonce, err := op.GetNonce(got.ToAddr)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("call op.GetNonce failed:%v", err)
 	}
 	fmt.Println("nonce in contract:", ctNonce)
 
 	fmt.Printf("withdrawing, nonce: %v\n", got.Nonce)
 	tx, err := pro.Withdraw(got)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("call pro.Withdraw failed:%v", err)
 	}
 	err = utils.WaitForMiner(tx)
 	if err != nil {

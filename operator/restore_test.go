@@ -98,7 +98,7 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	op, err := New(opSk)
+	op, err := New(opSk, "./op/order.db", "./op/check.db")
 	if err != nil {
 		t.Fatal(err)
 	}

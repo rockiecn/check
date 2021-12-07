@@ -32,17 +32,12 @@ type Provider struct {
 type IProvider interface {
 	Verify(pchk *check.Paycheck, dataValue *big.Int) (bool, error)
 	Put(pchk *check.Paycheck) error
-	GetNextPayable() (*check.Paycheck, error)
 	Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error)
 	QueryBalance() (*big.Int, error)
 }
 
-// db file name
-var pchkDBfile = "pchk.db"
-var batchDBfile = "batch.db"
-
-// create a provider out of sk
-func New(sk string) (IProvider, error) {
+// create a provider out of sk, pc dbfile, bt dbfile
+func New(sk string, pcDBfile string, btDBfile string) (IProvider, error) {
 	addr, err := utils.SkToAddr(sk)
 	if err != nil {
 		return nil, err
@@ -55,14 +50,14 @@ func New(sk string) (IProvider, error) {
 	}
 
 	pchkDB := &store.Store{}
-	pchkDB.DB, err = leveldb.OpenFile(pchkDBfile, nil)
+	pchkDB.DB, err = leveldb.OpenFile(pcDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
 	}
 
 	batchDB := &store.Store{}
-	batchDB.DB, err = leveldb.OpenFile(batchDBfile, nil)
+	batchDB.DB, err = leveldb.OpenFile(btDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
@@ -140,139 +135,6 @@ func (pro *Provider) PutBatch(bchk *check.BatchCheck) error {
 	pro.BatchPool[bchk.MinNonce] = bchk
 
 	return nil
-}
-
-// get the next payable paycheck in db
-func (pro *Provider) GetNextPayable() (*check.Paycheck, error) {
-
-	// get db
-	db := pro.PcStorer.(*store.Store).DB
-
-	if db == nil {
-		return nil, errors.New("nil check db")
-	}
-
-	var (
-		theOne   = (*check.Paycheck)(nil)
-		max      = ^uint64(0)
-		minNonce = max
-	)
-
-	// read data from db
-	iter := db.NewIterator(nil, nil)
-	for iter.Next() {
-		k := iter.Key()
-		v := iter.Value()
-
-		// get nonce
-		n := utils.ByteToUint64(k)
-
-		// Deserialize paycheck
-		pchk := &check.Paycheck{}
-		err := pchk.DeSerialize(v)
-		if err != nil {
-			return nil, err
-		}
-
-		// get current nonce in contract
-		ctrNonce, err := utils.GetCtNonce(pchk.CtrAddr, pro.ProviderAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		// nonce too old, skip it
-		if n < ctrNonce {
-			continue
-		}
-
-		// get and update minNonce
-		if n < minNonce {
-			minNonce = n
-			theOne = pchk
-		}
-	}
-
-	iter.Release()
-	err := iter.Error()
-	if err != nil {
-		return nil, err
-	}
-
-	// not found
-	if theOne == nil {
-		return nil, errors.New("payable paycheck not found in db")
-	}
-
-	// put paycheck into pool
-	pro.Put(theOne)
-
-	return theOne, nil
-}
-
-// get next payable batch check
-func (pro *Provider) GetNextPayableBatch() (*check.BatchCheck, error) {
-
-	st := pro.BtStorer.(*store.Store)
-
-	if st.DB == nil {
-		return nil, errors.New("nil check db")
-	}
-
-	var (
-		theOne   = (*check.BatchCheck)(nil)
-		max      = ^uint64(0)
-		minNonce = max
-	)
-
-	// read data from db
-	iter := st.DB.NewIterator(nil, nil)
-	for iter.Next() {
-		k := iter.Key()
-		v := iter.Value()
-
-		// get nonce
-		n := utils.ByteToUint64(k)
-
-		// Deserialize batchcheck
-		bchk := &check.BatchCheck{}
-		err := bchk.DeSerialize(v)
-		if err != nil {
-			return nil, err
-		}
-
-		// get current nonce in contract
-		ctrNonce, err := utils.GetCtNonce(bchk.CtrAddr, pro.ProviderAddr)
-		if err != nil {
-			return nil, err
-		}
-
-		// nonce too old, skip it
-		if n < ctrNonce {
-			continue
-		}
-
-		// get and update minNonce
-		if n < minNonce {
-			minNonce = n
-			theOne = bchk
-		}
-	}
-
-	iter.Release()
-	err := iter.Error()
-	if err != nil {
-		return nil, err
-	}
-
-	// not found
-	if theOne == nil {
-		return nil, errors.New("payable batch check not found in db")
-	}
-
-	// put paycheck into pool
-	pro.PutBatch(theOne)
-
-	return theOne, nil
 }
 
 // CallApplyCheque - send tx to contract to call apply cheque method.

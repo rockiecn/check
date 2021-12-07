@@ -43,14 +43,8 @@ type IOperator interface {
 	Aggregate(pcs []*check.Paycheck) (*check.BatchCheck, error)
 }
 
-// db file name of order and check
-var (
-	odrDBfile string = "./order.db"
-	chkDBfile string = "./check.db"
-)
-
-// create an operator out of sk
-func New(sk string) (IOperator, error) {
+// create an operator out of sk, order dbfile, check dbfile
+func New(sk string, odrDBfile string, chkDBfile string) (IOperator, error) {
 	opAddr, err := utils.SkToAddr(sk)
 	if err != nil {
 		return nil, err

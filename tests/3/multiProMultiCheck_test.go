@@ -28,28 +28,38 @@ func TestMultiProMultiCheck(t *testing.T) {
 
 	// init roles
 	fmt.Println("-> Init Operator")
-	op, err := common.InitOperator()
+	op, err := common.InitOperator("./op/order.db", "./op/check.db")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("-> Init User")
-	usr, err := common.InitUser()
+	usr, err := common.InitUser("./usr/pc.db")
 	if err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println("-> Init 3 Providers ")
-	pro0, err := common.InitPro()
+	pro0, err := common.InitPro("./pro0/pc.db", "./pro0/bt.db")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pro1, err := common.InitPro()
+	pro1, err := common.InitPro("./pro1/pc.db", "./pro1/bt.db")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pro2, err := common.InitPro()
+	pro2, err := common.InitPro("./pro2/pc.db", "./pro2/bt.db")
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	op.ChkStorer.Clear()
+	op.OdrStorer.Clear()
+	usr.PcStorer.Clear()
+	pro0.BtStorer.Clear()
+	pro0.PcStorer.Clear()
+	pro1.BtStorer.Clear()
+	pro1.PcStorer.Clear()
+	pro2.BtStorer.Clear()
+	pro2.PcStorer.Clear()
 
 	// init 3 orders
 	fmt.Println("-> Init 3 orders")

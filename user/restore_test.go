@@ -65,7 +65,7 @@ func TestStore(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	usr, err := New(usrSk)
+	usr, err := New(usrSk, "./usr/pc.db")
 	if err != nil {
 		t.Fatal(err)
 	}

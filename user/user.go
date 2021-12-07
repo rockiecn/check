@@ -32,11 +32,8 @@ type IUser interface {
 	Pay(to common.Address, dataValue *big.Int) (*check.Paycheck, error)
 }
 
-// user db file name
-var userDBfile = "user.db"
-
-// create an user object out of sk
-func New(sk string) (IUser, error) {
+// create an user object out of sk, pc dbfile
+func New(sk string, pcDBfile string) (IUser, error) {
 	addr, err := utils.SkToAddr(sk)
 	if err != nil {
 		return nil, err
@@ -49,7 +46,7 @@ func New(sk string) (IUser, error) {
 
 	// open db
 	st := &store.Store{}
-	st.DB, err = leveldb.OpenFile(userDBfile, nil)
+	st.DB, err = leveldb.OpenFile(pcDBfile, nil)
 	if err != nil {
 		fmt.Println("open db error: ", err)
 		return nil, err
@@ -62,7 +59,9 @@ func New(sk string) (IUser, error) {
 
 // generate a paycheck out of a check
 // check here is acquired from operator's order manager by order id
-// then store paycheck into db
+// Things need to do:
+// put paycheck into pool
+// store paycheck into db
 func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	if chk == nil {
 		return nil, errors.New("check nil")
@@ -76,12 +75,6 @@ func (user *User) GenPchk(chk *check.Check) (*check.Paycheck, error) {
 	err := pc.Sign(user.UserSK)
 	if err != nil {
 		return nil, errors.New("paycheck sign error")
-	}
-
-	// store pc into db
-	err = user.Store(pc)
-	if err != nil {
-		return nil, err
 	}
 
 	return pc, nil

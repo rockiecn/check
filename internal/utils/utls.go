@@ -106,7 +106,7 @@ func GetCtNonce(contract common.Address, to common.Address) (uint64, error) {
 	// get nonce
 	nonce, err := cashInstance.GetNonce(nil, to)
 	if err != nil {
-		return 0, errors.New("tx failed")
+		return 0, err
 	}
 
 	return nonce, nil
