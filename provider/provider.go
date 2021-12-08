@@ -18,7 +18,7 @@ import (
 type Provider struct {
 	ProviderSK   string
 	ProviderAddr common.Address
-	Host         string
+	//Host         string
 
 	Pool      map[uint64]*check.Paycheck
 	BatchPool map[uint64]*check.BatchCheck
@@ -45,8 +45,8 @@ func New(sk string, pcDBfile string, btDBfile string) (IProvider, error) {
 	pro := &Provider{
 		ProviderSK:   sk,
 		ProviderAddr: addr,
-		Host:         "http://localhost:8545",
-		Pool:         make(map[uint64]*check.Paycheck),
+		//Host:         "http://localhost:8545",
+		Pool: make(map[uint64]*check.Paycheck),
 	}
 
 	pchkDB := &store.Store{}
@@ -140,13 +140,13 @@ func (pro *Provider) PutBatch(bchk *check.BatchCheck) error {
 // CallApplyCheque - send tx to contract to call apply cheque method.
 func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err error) {
 
-	ethClient, err := utils.GetClient(pro.Host)
+	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
 		return nil, errors.New("failed to dial geth")
 	}
 	defer ethClient.Close()
 
-	auth, err := utils.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
+	auth, err := utils.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(utils.GasP), utils.GasL)
 	if err != nil {
 		return nil, errors.New("make auth failed")
 	}
@@ -174,7 +174,7 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 	}
 	tx, err = cashInstance.Withdraw(auth, cashpc)
 	if err != nil {
-		return nil, errors.New("tx failed")
+		return nil, err
 	}
 
 	//fmt.Println("Mine a block to complete.")
@@ -186,14 +186,14 @@ func (pro *Provider) Withdraw(pc *check.Paycheck) (tx *types.Transaction, err er
 func (pro *Provider) WithdrawBatch(bc *check.BatchCheck) (tx *types.Transaction, err error) {
 
 	// connect
-	ethClient, err := utils.GetClient(pro.Host)
+	ethClient, err := utils.GetClient(utils.HOST)
 	if err != nil {
 		return nil, errors.New("failed to dial geth")
 	}
 	defer ethClient.Close()
 
 	// auth
-	auth, err := utils.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(1000), 9000000)
+	auth, err := utils.MakeAuth(pro.ProviderSK, nil, nil, big.NewInt(utils.GasP), utils.GasL)
 	if err != nil {
 		return nil, errors.New("make auth failed")
 	}

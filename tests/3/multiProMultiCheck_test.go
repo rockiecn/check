@@ -62,23 +62,23 @@ func TestMultiProMultiCheck(t *testing.T) {
 	pro2.PcStorer.Clear()
 
 	// init 3 orders
-	fmt.Println("-> Init 3 orders")
-	err = common.InitOrder(0, usr, op, pro0, "300000000000000000")
+	fmt.Println("-> Init 3 orders, value: 0.003")
+	err = common.InitOrder(0, usr, op, pro0, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = common.InitOrder(1, usr, op, pro1, "300000000000000000")
+	err = common.InitOrder(1, usr, op, pro1, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = common.InitOrder(2, usr, op, pro2, "300000000000000000")
+	err = common.InitOrder(2, usr, op, pro2, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// pay
-	fmt.Println("-> pay 0.1 eth to provider0 with nonce 0")
-	n, err := common.Pay(usr, pro0, "100000000000000000")
+	fmt.Println("-> pay 0.001 eth to provider0 with nonce 0")
+	n, err := common.Pay(usr, pro0, "1000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,8 +86,8 @@ func TestMultiProMultiCheck(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
-	fmt.Println("-> pay 0.2 eth to provider1 with nonce 0")
-	n, err = common.Pay(usr, pro1, "200000000000000000")
+	fmt.Println("-> pay 0.002 eth to provider1 with nonce 0")
+	n, err = common.Pay(usr, pro1, "2000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,8 +95,8 @@ func TestMultiProMultiCheck(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
-	fmt.Println("-> pay 0.3 eth to provider2 with nonce 0")
-	n, err = common.Pay(usr, pro2, "300000000000000000")
+	fmt.Println("-> pay 0.003 eth to provider2 with nonce 0")
+	n, err = common.Pay(usr, pro2, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}

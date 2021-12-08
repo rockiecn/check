@@ -22,11 +22,18 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-type Common struct {
-	Host string
-}
+//const HOST = "http://localhost:8545"
+const (
+	// client params
+	HOST    = "http://119.147.213.220:8191"
+	ChainID = 35896
 
-const HOST = "http://localhost:8545"
+	// transaction params
+	GasP = 1000    // gas price
+	GasL = 2000000 // gas limit
+
+	Debug = true // debug flag
+)
 
 // get address from private key
 func SkToAddr(sk string) (common.Address, error) {
@@ -75,7 +82,7 @@ func MakeAuth(
 		return auth, err
 	}
 
-	auth, err = bind.NewKeyedTransactorWithChainID(priKeyECDSA, big.NewInt(1337))
+	auth, err = bind.NewKeyedTransactorWithChainID(priKeyECDSA, big.NewInt(ChainID))
 	if err != nil {
 		fmt.Println("make auth failed:", err)
 		return nil, err

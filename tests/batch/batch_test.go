@@ -50,7 +50,7 @@ func TestBatch(t *testing.T) {
 	odr0 := &operator.Order{
 		ID:    0,
 		Token: common.Token,
-		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
+		Value: utils.String2BigInt("3000000000000000"), // order value: 0.003 eth
 		From:  usr.UserAddr,
 		To:    pro.ProviderAddr,
 		Time:  time.Now().Unix(),
@@ -73,7 +73,7 @@ func TestBatch(t *testing.T) {
 	odr1 := &operator.Order{
 		ID:    1,
 		Token: common.Token,
-		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
+		Value: utils.String2BigInt("3000000000000000"), // order value: 0.003 eth
 		From:  usr.UserAddr,
 		To:    pro.ProviderAddr,
 		Time:  time.Now().Unix(),
@@ -96,7 +96,7 @@ func TestBatch(t *testing.T) {
 	odr2 := &operator.Order{
 		ID:    2,
 		Token: common.Token,
-		Value: utils.String2BigInt("300000000000000000"), // order value: 0.3 eth
+		Value: utils.String2BigInt("3000000000000000"), // order value: 0.003 eth
 		From:  usr.UserAddr,
 		To:    pro.ProviderAddr,
 		Time:  time.Now().Unix(),
@@ -131,19 +131,19 @@ func TestBatch(t *testing.T) {
 
 	pchk0 := &check.Paycheck{
 		Check:    chk0,
-		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
+		PayValue: utils.String2BigInt("1000000000000000"), // 0.001 eth
 	}
 	pchk0.Sign(usr.UserSK) // user sk
 
 	pchk1 := &check.Paycheck{
 		Check:    chk1,
-		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
+		PayValue: utils.String2BigInt("1000000000000000"), // 0.001 eth
 	}
 	pchk1.Sign(usr.UserSK) // user sk
 
 	pchk2 := &check.Paycheck{
 		Check:    chk2,
-		PayValue: utils.String2BigInt("100000000000000000"), // 0.1 eth
+		PayValue: utils.String2BigInt("1000000000000000"), // 0.001 eth
 	}
 	pchk2.Sign(usr.UserSK) // user sk
 
@@ -183,7 +183,8 @@ func TestBatch(t *testing.T) {
 	delta := new(big.Int).Sub(b2, b1)
 	delta.Add(delta, gasUsed)
 
-	want := utils.String2BigInt("300000000000000000")
+	// 0.003 eth
+	want := utils.String2BigInt("3000000000000000")
 
 	// check result
 	if delta.Cmp(want) != 0 {

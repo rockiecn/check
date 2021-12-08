@@ -58,23 +58,23 @@ func TestSingleProMultiCheck(t *testing.T) {
 	pro.PcStorer.Clear()
 
 	// create 3 orders
-	fmt.Println("-> Init 3 orders")
-	err = common.InitOrder(0, usr, op, pro, "500000000000000000")
+	fmt.Println("-> Init 3 orders, value: 0.005 eth")
+	err = common.InitOrder(0, usr, op, pro, "5000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = common.InitOrder(1, usr, op, pro, "500000000000000000")
+	err = common.InitOrder(1, usr, op, pro, "5000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = common.InitOrder(2, usr, op, pro, "500000000000000000")
+	err = common.InitOrder(2, usr, op, pro, "5000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// pay
-	fmt.Println("-> pay 0.1 eth: check with nonce 0 should be enough")
-	n, err := common.Pay(usr, pro, "100000000000000000")
+	fmt.Println("-> pay 0.001 eth: check with nonce 0 should be enough")
+	n, err := common.Pay(usr, pro, "1000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,8 +82,8 @@ func TestSingleProMultiCheck(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
-	fmt.Println("-> pay 0.2 eth: check with nonce 0 should be enough")
-	n, err = common.Pay(usr, pro, "200000000000000000")
+	fmt.Println("-> pay 0.002 eth: check with nonce 0 should be enough")
+	n, err = common.Pay(usr, pro, "2000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,8 +91,8 @@ func TestSingleProMultiCheck(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
-	fmt.Println("-> pay 0.4 eth: nonce 0 is not enough, nonce 1 should be used")
-	n, err = common.Pay(usr, pro, "400000000000000000")
+	fmt.Println("-> pay 0.004 eth: nonce 0 is not enough, nonce 1 should be used")
+	n, err = common.Pay(usr, pro, "4000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,8 +100,8 @@ func TestSingleProMultiCheck(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 1", n)
 	}
 
-	fmt.Println("-> pay 0.2 eth: nonce 0 should be enough again(0.2 remained)")
-	n, err = common.Pay(usr, pro, "200000000000000000")
+	fmt.Println("-> pay 0.002 eth: nonce 0 should be enough again(0.2 remained)")
+	n, err = common.Pay(usr, pro, "2000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,8 +109,8 @@ func TestSingleProMultiCheck(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
-	fmt.Println("-> pay 0.6 eth: no check is enough(0.5 max), nil paycheck expected")
-	_, err = common.Pay(usr, pro, "600000000000000000")
+	fmt.Println("-> pay 0.006 eth: no check is enough(0.05 max), nil paycheck expected")
+	_, err = common.Pay(usr, pro, "6000000000000000")
 	if err.Error() != "user: usable paycheck not found" {
 		t.Fatal(errors.New("no paycheck should be found with enough money"))
 	}
@@ -135,8 +135,8 @@ func TestSingleProMultiCheck(t *testing.T) {
 	}
 
 	//Pay at withdraw
-	fmt.Println("-> pay 0.1 eth: check with nonce 2 should be selected now")
-	n, err = common.Pay(usr, pro, "100000000000000000")
+	fmt.Println("-> pay 0.001 eth: check with nonce 2 should be selected now")
+	n, err = common.Pay(usr, pro, "1000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,14 +145,14 @@ func TestSingleProMultiCheck(t *testing.T) {
 	}
 
 	fmt.Println("Now test pay at withdraw:")
-	fmt.Println("-> pay 0.2 eth: nonce 2 should be selected")
+	fmt.Println("-> pay 0.002 eth: nonce 2 should be selected")
 	// pay: 0.2 eth
-	userPC, err := usr.Pay(pro.ProviderAddr, utils.String2BigInt(("200000000000000000")))
+	userPC, err := usr.Pay(pro.ProviderAddr, utils.String2BigInt(("2000000000000000")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if userPC == nil || userPC.Check.Nonce != 2 {
-		t.Fatal("test pay 0.2 failed")
+		t.Fatal("test pay 0.002 failed")
 	} else {
 		fmt.Println("OK- payer nonce: ", userPC.Check.Nonce)
 	}
@@ -174,7 +174,7 @@ func TestSingleProMultiCheck(t *testing.T) {
 	*proPC = *userPC
 
 	fmt.Println("now verify the latest paycheck, should fail with nonce error.")
-	_, err = pro.Verify(proPC, utils.String2BigInt(("200000000000000000")))
+	_, err = pro.Verify(proPC, utils.String2BigInt(("2000000000000000")))
 	if err.Error() != "nonce should not less than contract nonce" {
 		t.Fatal("nonce error should be detected.")
 	}

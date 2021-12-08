@@ -184,14 +184,14 @@ func (op *Operator) Deploy(value *big.Int) (*types.Transaction, common.Address, 
 
 	// transfer to big.Int for contract
 	bigNonce := new(big.Int).SetUint64(nonce)
-	auth, err := utils.MakeAuth(op.OpSK, value, bigNonce, gasPrice, 9000000)
+	auth, err := utils.MakeAuth(op.OpSK, value, bigNonce, gasPrice, utils.GasL)
 	if err != nil {
-		return nil, common.Address{}, err
+		return nil, common.Address{}, fmt.Errorf("MakeAuth- %v", err)
 	}
 
 	addr, tx, _, err := cash.DeployCash(auth, ethClient)
 	if err != nil {
-		return nil, common.Address{}, err
+		return nil, common.Address{}, fmt.Errorf("DeployCash- %v", err)
 	}
 
 	return tx, addr, nil

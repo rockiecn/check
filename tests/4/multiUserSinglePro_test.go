@@ -59,23 +59,23 @@ func TestMultiUserSinglePro(t *testing.T) {
 	pro.PcStorer.Clear()
 
 	// init 3 orders
-	fmt.Println("-> Init 3 orders")
-	err = common.InitOrder(0, usr0, op, pro, "300000000000000000")
+	fmt.Println("-> Init 3 orders, valule: 0.003 eth")
+	err = common.InitOrder(0, usr0, op, pro, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = common.InitOrder(1, usr1, op, pro, "300000000000000000")
+	err = common.InitOrder(1, usr1, op, pro, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = common.InitOrder(2, usr2, op, pro, "300000000000000000")
+	err = common.InitOrder(2, usr2, op, pro, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// pay
-	fmt.Println("-> user0 pay 0.1 eth to provider with nonce 0")
-	n, err := common.Pay(usr0, pro, "100000000000000000")
+	fmt.Println("-> user0 pay 0.001 eth to provider with nonce 0")
+	n, err := common.Pay(usr0, pro, "1000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,8 +83,8 @@ func TestMultiUserSinglePro(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 0", n)
 	}
 
-	fmt.Println("-> user1 pay 0.2 eth to provider with nonce 1")
-	n, err = common.Pay(usr1, pro, "200000000000000000")
+	fmt.Println("-> user1 pay 0.002 eth to provider with nonce 1")
+	n, err = common.Pay(usr1, pro, "2000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,8 +92,8 @@ func TestMultiUserSinglePro(t *testing.T) {
 		t.Fatalf("nonce %v picked, but should be 1", n)
 	}
 
-	fmt.Println("-> user2 pay 0.3 eth to provider with nonce 2")
-	n, err = common.Pay(usr2, pro, "300000000000000000")
+	fmt.Println("-> user2 pay 0.003 eth to provider with nonce 2")
+	n, err = common.Pay(usr2, pro, "3000000000000000")
 	if err != nil {
 		t.Fatal(err)
 	}

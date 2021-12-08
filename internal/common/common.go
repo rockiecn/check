@@ -17,7 +17,9 @@ import (
 
 var (
 	// a local account, with enough money in it
-	SenderSk = "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
+	//SenderSk = "503f38a9c967ed597e47fe25643985f032b072db8075426a92110f82df48dfcb"
+	//
+	SenderSk = "0a95533a110ee10bdaa902fed92e56f3f7709a532e22b5974c03c0251648a5d4"
 	Token    = common.HexToAddress("0xb213d01542d129806d664248a380db8b12059061")
 )
 
@@ -34,8 +36,8 @@ func InitOperator(odrDB string, chkDB string) (*operator.Operator, error) {
 	Op := op.(*operator.Operator)
 
 	// send 2 eth to operator
-	fmt.Println("sending coin to operator")
-	tx, err := utils.SendCoin(SenderSk, Op.OpAddr, utils.String2BigInt("2000000000000000000"))
+	fmt.Printf("sending 0.1 eth to operator: %v\n", Op.OpAddr)
+	tx, err := utils.SendCoin(SenderSk, Op.OpAddr, utils.String2BigInt("100000000000000000"))
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +46,9 @@ func InitOperator(odrDB string, chkDB string) (*operator.Operator, error) {
 		return nil, err
 	}
 
-	fmt.Println("deploying contract")
-	// operator deploy contract, with 1.8 eth
-	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("1800000000000000000"))
+	fmt.Println("deploying contract with 0.08 eth")
+	// operator deploy contract, with 0.08 eth
+	tx, ctrAddr, err := op.Deploy(utils.String2BigInt("80000000000000000"))
 	if err != nil {
 		return nil, err
 	}
@@ -89,9 +91,9 @@ func InitPro(pcDB string, btDB string) (*provider.Provider, error) {
 
 	Pro := pro.(*provider.Provider)
 
-	// send 0.1 eth to provider
-	fmt.Println("sending coin to provider for tx")
-	tx, err := utils.SendCoin(SenderSk, Pro.ProviderAddr, utils.String2BigInt("100000000000000000"))
+	// send 0.01 eth to provider
+	fmt.Println("sending 0.001 eth to provider for tx")
+	tx, err := utils.SendCoin(SenderSk, Pro.ProviderAddr, utils.String2BigInt("1000000000000000"))
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +220,7 @@ func Withdraw(
 	// nonce 0 expected
 	got, err := pro.PcStorer.GetNextPayable()
 	if err != nil {
-		return 0, fmt.Errorf("call pro.GetNextPayable failed:%v", err)
+		return 0, fmt.Errorf("call pro.GetNextPayable failed: %v", err)
 	}
 	if got == nil {
 		return 0, errors.New("nil paycheck got")
@@ -227,19 +229,19 @@ func Withdraw(
 	// query provider balance before withdraw
 	b1, err := pro.QueryBalance()
 	if err != nil {
-		return 0, fmt.Errorf("call pro.QueryBalance failed:%v", err)
+		return 0, fmt.Errorf("call pro.QueryBalance failed: %v", err)
 	}
 
 	ctNonce, err := op.GetNonce(got.ToAddr)
 	if err != nil {
-		return 0, fmt.Errorf("call op.GetNonce failed:%v", err)
+		return 0, fmt.Errorf("call op.GetNonce failed: %v", err)
 	}
 	fmt.Println("nonce in contract:", ctNonce)
 
 	fmt.Printf("withdrawing, nonce: %v\n", got.Nonce)
 	tx, err := pro.Withdraw(got)
 	if err != nil {
-		return 0, fmt.Errorf("call pro.Withdraw failed:%v", err)
+		return 0, fmt.Errorf("call pro.Withdraw failed: %v", err)
 	}
 	err = utils.WaitForMiner(tx)
 	if err != nil {
@@ -259,9 +261,16 @@ func Withdraw(
 
 	// need add used gas for withdraw tx
 	delta := new(big.Int).Sub(b2, b1)
-	newPV := big.NewInt(0).Add(delta, gasUsed)
+	realPV := new(big.Int).Add(delta, gasUsed)
 
-	if newPV.Cmp(got.PayValue) != 0 {
+	if utils.Debug {
+		fmt.Println("   delta: ", delta)
+		fmt.Println(" gasUsed: ", gasUsed)
+		fmt.Println("  realPV: ", realPV.String())
+		fmt.Println("payvalue: ", got.PayValue)
+	}
+
+	if realPV.Cmp(got.PayValue) != 0 {
 		return 0, errors.New("withdrawed money not equal payvalue")
 	}
 	fmt.Println("OK- withdrawed money equal payvalue")
